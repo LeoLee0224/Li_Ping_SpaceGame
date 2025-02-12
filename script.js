@@ -8,10 +8,27 @@ let timer = null;
 let timeLeft = 60;
 let currentSessionId = null;
 let playerName = '';
-let gameStarted = false; // 新增遊戲狀態標記
+let gameStarted = false;
 let leaderboard = JSON.parse(localStorage.getItem('spaceQuizLeaderboard')) || [];
 let gameSession = null;
 let html5QrcodeScanner = null;
+
+// 尋找可用的會話
+async function findAvailableSession() {
+    const snapshot = await database.ref('gameSessions').once('value');
+    const sessions = snapshot.val();
+    
+    if (sessions) {
+        for (let sessionId in sessions) {
+            const session = sessions[sessionId];
+            // 確保只返回等待中且沒有第二位玩家的會話
+            if (session.status === 'waiting' && !session.player2) {
+                return sessionId;
+            }
+        }
+    }
+    return null;
+}
 
 async function startGame() {
     const nameInput = document.querySelector('input[type="text"]');
@@ -22,9 +39,16 @@ async function startGame() {
         return;
     }
 
+    // 顯示等待訊息
     document.getElementById('waitingMessage').style.display = 'block';
+    document.querySelector('.input-container').style.display = 'none';
     
     try {
+        // 移除之前的監聽器（如果存在）
+        if (currentSessionId) {
+            database.ref(`gameSessions/${currentSessionId}`).off();
+        }
+
         const availableSession = await findAvailableSession();
         
         if (availableSession) {
@@ -35,36 +59,48 @@ async function startGame() {
                 status: 'ready'
             });
         } else {
-            // 創建新會話，等待第二位玩家
+            // 創建新會話
             const newSessionRef = await database.ref('gameSessions').push({
                 player1: playerName,
-                status: 'waiting'  // 改回 'waiting'
+                status: 'waiting',
+                timestamp: Date.now()
             });
             currentSessionId = newSessionRef.key;
         }
 
-        // 監聽會話狀態
+        // 設置會話監聽器
         database.ref(`gameSessions/${currentSessionId}`).on('value', (snapshot) => {
             const session = snapshot.val();
-            if (session && session.status === 'ready') {
-                // 當兩位玩家都準備好時才開始遊戲
-                document.getElementById('waitingMessage').style.display = 'none';
-                document.querySelector('.input-container').style.display = 'none';
-                document.querySelector('.game-container').style.display = 'block';
-                
-                if (!document.querySelector('.player-info').textContent) {
-                    document.querySelector('.player-info').textContent = `參加者：${playerName}`;
-                }
-                
-                startTimer();
-                updateScore();
-                initializeScanner(); // 初始化掃描器
+            console.log('Session update:', session); // 調試用
+            
+            if (session && session.status === 'ready' && !gameStarted) {
+                gameStarted = true;
+                startGameSession();
+            } else if (session && session.status === 'waiting') {
+                // 確保等待訊息顯示
+                document.getElementById('waitingMessage').style.display = 'block';
+                document.querySelector('.game-container').style.display = 'none';
             }
         });
+
     } catch (error) {
         console.error('Error:', error);
         alert('發生錯誤：' + error.message);
     }
+}
+
+function startGameSession() {
+    // 隱藏等待訊息，顯示遊戲界面
+    document.getElementById('waitingMessage').style.display = 'none';
+    document.querySelector('.game-container').style.display = 'block';
+    
+    // 設置玩家信息
+    document.querySelector('.player-info').textContent = `參加者：${playerName}`;
+    
+    // 初始化遊戲
+    startTimer();
+    updateScore();
+    initializeScanner();
 }
 
 function addScore(isCorrect) {
@@ -389,74 +425,6 @@ document.addEventListener('DOMContentLoaded', () => {
     testFirebaseConnection();
 });
 
-// 尋找可用會話的輔助函數
-async function findAvailableSession() {
-    const snapshot = await database.ref('gameSessions').once('value');
-    const sessions = snapshot.val();
-    
-    if (sessions) {
-        for (let sessionId in sessions) {
-            const session = sessions[sessionId];
-            if (session.status === 'waiting' && !session.player2) {
-                return sessionId;
-            }
-        }
-    }
-    return null;
-}
-
-// 初始化事件監聽
-document.addEventListener('DOMContentLoaded', () => {
-    const startButton = document.querySelector('.input-container button');
-    
-    // 移除之前的事件監聽器
-    startButton.removeEventListener('click', startGame);
-    // 添加新的事件監聽器
-    startButton.addEventListener('click', startGame);
-    
-    // 移除之前的按鈕事件監聽器
-    const correctButton = document.querySelector('.correct-btn');
-    const wrongButton = document.querySelector('.wrong-btn');
-    const completeButton = document.querySelector('.complete-btn');
-    
-    if (correctButton) {
-        correctButton.removeEventListener('click', handleCorrect);
-        correctButton.addEventListener('click', handleCorrect);
-    }
-    if (wrongButton) {
-        wrongButton.removeEventListener('click', handleWrong);
-        wrongButton.addEventListener('click', handleWrong);
-    }
-    if (completeButton) {
-        completeButton.removeEventListener('click', endGame);
-        completeButton.addEventListener('click', endGame);
-    }
-    
-    // 主頁面的排行榜按鈕
-    const mainLeaderboardBtn = document.querySelector('.input-container .leaderboard-btn');
-    if (mainLeaderboardBtn) {
-        mainLeaderboardBtn.onclick = () => showLeaderboard(false);
-    }
-    
-    // 結果頁面的排行榜按鈕
-    const resultLeaderboardBtn = document.querySelector('.result-container .leaderboard-btn');
-    if (resultLeaderboardBtn) {
-        resultLeaderboardBtn.onclick = () => showLeaderboard(true);
-    }
-    
-    // 返回按鈕
-    const backButton = document.querySelector('.back-btn');
-    if (backButton) {
-        backButton.onclick = backFromLeaderboard;
-    }
-    
-    // 再次挑戰按鈕
-    const restartButton = document.querySelector('.restart-btn');
-    if (restartButton) {
-        restartButton.onclick = restartGame;
-    }
-});
-
 // 處理QR Code掃描結果
 function handleQRCode(qrContent) {
     if (quizQuestions[qrContent]) {
@@ -539,4 +507,70 @@ function initializeScanner() {
 
     // 保存掃描器實例以便後續使用
     html5QrcodeScanner = html5QrCode;
-} 
+}
+
+// 清理函數
+function cleanupGame() {
+    if (currentSessionId) {
+        database.ref(`gameSessions/${currentSessionId}`).off();
+    }
+    if (html5QrcodeScanner) {
+        html5QrcodeScanner.stop();
+    }
+    gameStarted = false;
+}
+
+// 在頁面卸載時清理
+window.addEventListener('beforeunload', cleanupGame);
+
+// 初始化事件監聽
+document.addEventListener('DOMContentLoaded', () => {
+    const startButton = document.querySelector('.input-container button');
+    
+    // 移除之前的事件監聽器
+    startButton.removeEventListener('click', startGame);
+    // 添加新的事件監聽器
+    startButton.addEventListener('click', startGame);
+    
+    // 移除之前的按鈕事件監聽器
+    const correctButton = document.querySelector('.correct-btn');
+    const wrongButton = document.querySelector('.wrong-btn');
+    const completeButton = document.querySelector('.complete-btn');
+    
+    if (correctButton) {
+        correctButton.removeEventListener('click', handleCorrect);
+        correctButton.addEventListener('click', handleCorrect);
+    }
+    if (wrongButton) {
+        wrongButton.removeEventListener('click', handleWrong);
+        wrongButton.addEventListener('click', handleWrong);
+    }
+    if (completeButton) {
+        completeButton.removeEventListener('click', endGame);
+        completeButton.addEventListener('click', endGame);
+    }
+    
+    // 主頁面的排行榜按鈕
+    const mainLeaderboardBtn = document.querySelector('.input-container .leaderboard-btn');
+    if (mainLeaderboardBtn) {
+        mainLeaderboardBtn.onclick = () => showLeaderboard(false);
+    }
+    
+    // 結果頁面的排行榜按鈕
+    const resultLeaderboardBtn = document.querySelector('.result-container .leaderboard-btn');
+    if (resultLeaderboardBtn) {
+        resultLeaderboardBtn.onclick = () => showLeaderboard(true);
+    }
+    
+    // 返回按鈕
+    const backButton = document.querySelector('.back-btn');
+    if (backButton) {
+        backButton.onclick = backFromLeaderboard;
+    }
+    
+    // 再次挑戰按鈕
+    const restartButton = document.querySelector('.restart-btn');
+    if (restartButton) {
+        restartButton.onclick = restartGame;
+    }
+}); 
