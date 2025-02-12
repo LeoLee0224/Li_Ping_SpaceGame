@@ -335,12 +335,12 @@ function showLeaderboard(fromResultPage = false) {
             Object.values(sessions).forEach(session => {
                 if (session.scores) {
                     Object.entries(session.scores).forEach(([name, data]) => {
-                        if (data.score !== undefined) {
+                        if (data.score !== undefined && data.completed) {
                             scores.push({
                                 name: name,
                                 score: data.score,
                                 timestamp: data.timestamp || Date.now(),
-                                isCurrentPlayer: fromResultPage && name === playerName
+                                isCurrentPlayer: name === playerName
                             });
                         }
                     });
@@ -355,8 +355,8 @@ function showLeaderboard(fromResultPage = false) {
             }
             return a.timestamp - b.timestamp;
         });
-
-        // 找到當前玩家的排名（如果存在）
+        
+        // 找到當前玩家的排名
         const currentPlayerRank = scores.findIndex(score => score.isCurrentPlayer) + 1;
         
         // 顯示前10名
@@ -369,7 +369,7 @@ function showLeaderboard(fromResultPage = false) {
                 scoreElement.classList.add('top-3', `rank-${index + 1}`);
             }
             
-            // 添加當前玩家的類
+            // 如果是當前玩家，添加特殊樣式
             if (score.isCurrentPlayer) {
                 scoreElement.classList.add('current-player');
             }
@@ -383,8 +383,13 @@ function showLeaderboard(fromResultPage = false) {
             leaderboardList.appendChild(scoreElement);
         });
 
-        // 如果當前玩家不在前10名，保持原有的顯示邏輯
-        if (fromResultPage && currentPlayerRank > 10) {
+        // 如果當前玩家不在前10名但存在排名，顯示其排名
+        if (currentPlayerRank > 10 && currentPlayerRank <= scores.length) {
+            const separatorElement = document.createElement('div');
+            separatorElement.className = 'leaderboard-separator';
+            separatorElement.textContent = '...';
+            leaderboardList.appendChild(separatorElement);
+
             const currentPlayerElement = document.createElement('div');
             currentPlayerElement.className = 'leaderboard-item current-player';
             const playerData = scores[currentPlayerRank - 1];
@@ -399,18 +404,26 @@ function showLeaderboard(fromResultPage = false) {
     });
 }
 
-// 返回主頁面
+// 修改返回按鈕的處理函數
 function backFromLeaderboard() {
-    // 清理當前遊戲狀態
+    console.log('返回按鈕被點擊'); // 調試用
+    
+    // 清理遊戲狀態
     cleanupGame();
     
-    // 隱藏排行榜
+    // 隱藏所有容器
     document.getElementById('leaderboardContainer').style.display = 'none';
     document.getElementById('resultContainer').style.display = 'none';
+    document.querySelector('.game-container').style.display = 'none';
     
-    // 重置並顯示輸入界面
+    // 顯示輸入界面
     document.querySelector('.input-container').style.display = 'block';
-    document.querySelector('input[type="text"]').value = '';
+    
+    // 清空輸入框
+    const nameInput = document.querySelector('input[type="text"]');
+    if (nameInput) {
+        nameInput.value = '';
+    }
 }
 
 function cleanupGame() {
@@ -646,6 +659,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const backButton = document.querySelector('.back-btn');
     if (backButton) {
         backButton.onclick = backFromLeaderboard;
+        console.log('返回按鈕事件已綁定'); // 調試用
+    } else {
+        console.log('未找到返回按鈕'); // 調試用
     }
     
     // 再次挑戰按鈕
