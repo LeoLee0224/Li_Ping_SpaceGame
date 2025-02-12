@@ -142,13 +142,12 @@ window.showLeaderboard = function(fromResultPage = false) {
     const leaderboardList = document.getElementById('leaderboardList');
     leaderboardList.innerHTML = '';
     
-    // 隱藏其他容器，顯示排行榜
+    // 隱藏其他容器
     document.querySelector('.input-container').style.display = 'none';
     document.querySelector('.game-container').style.display = 'none';
     document.getElementById('resultContainer').style.display = 'none';
     document.getElementById('leaderboardContainer').style.display = 'block';
     
-    // 從 Firebase 獲取排行榜數據
     database.ref('gameSessions').once('value')
         .then((snapshot) => {
             const sessions = snapshot.val();
@@ -174,6 +173,9 @@ window.showLeaderboard = function(fromResultPage = false) {
             // 排序分數
             scores.sort((a, b) => b.score - a.score);
             
+            // 找到當前玩家的位置
+            const currentPlayerIndex = scores.findIndex(s => s.isCurrentPlayer);
+            
             // 顯示所有分數
             scores.forEach((score, index) => {
                 const scoreElement = document.createElement('div');
@@ -191,20 +193,13 @@ window.showLeaderboard = function(fromResultPage = false) {
                 leaderboardList.appendChild(scoreElement);
             });
             
-            // 如果找不到當前玩家的分數，添加到最後
-            if (!scores.some(s => s.isCurrentPlayer) && currentScore > 0) {
-                const playerElement = document.createElement('div');
-                playerElement.className = 'leaderboard-item current-player';
-                playerElement.innerHTML = `
-                    <span class="rank">${scores.length + 1}</span>
-                    <span class="name">${playerName}</span>
-                    <span class="score">${currentScore}</span>
-                `;
-                leaderboardList.appendChild(playerElement);
+            // 如果是從結果頁面來的，滾動到當前玩家的位置
+            if (fromResultPage && currentPlayerIndex !== -1) {
+                const playerElement = leaderboardList.children[currentPlayerIndex];
+                if (playerElement) {
+                    playerElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }
             }
-        })
-        .catch(error => {
-            showDebug('獲取排行榜數據錯誤: ' + error.message, true);
         });
 };
 
@@ -224,8 +219,8 @@ async function findAvailableSession() {
     return null;
 }
 
-// 確保這個函數在文件開頭就定義
-async function startGame() {
+// 開始遊戲函數
+window.startGame = async function() {
     showDebug('開始遊戲函數被調用');
     const nameInput = document.querySelector('input[type="text"]');
     playerName = nameInput.value.trim();
@@ -245,18 +240,19 @@ async function startGame() {
             database.ref(`gameSessions/${currentSessionId}`).off();
         }
 
+        // 尋找可用的會話
         const availableSession = await findAvailableSession();
-        showDebug('尋找可用會話結果: ' + (availableSession ? '找到' : '未找到'));
-        
+        showDebug('尋找可用會話: ' + (availableSession ? '找到' : '未找到'));
+
         if (availableSession) {
-            showDebug('加入現有會話');
+            // 加入現有會話
             currentSessionId = availableSession;
             await database.ref(`gameSessions/${currentSessionId}`).update({
                 player2: playerName,
                 status: 'ready'
             });
         } else {
-            showDebug('創建新會話');
+            // 創建新會話
             const newSessionRef = await database.ref('gameSessions').push({
                 player1: playerName,
                 status: 'waiting',
@@ -268,15 +264,9 @@ async function startGame() {
         // 監聽會話狀態
         database.ref(`gameSessions/${currentSessionId}`).on('value', (snapshot) => {
             const session = snapshot.val();
-            showDebug('會話狀態更新: ' + JSON.stringify(session));
-            
             if (session && session.status === 'ready') {
                 document.getElementById('waitingMessage').style.display = 'none';
                 document.querySelector('.game-container').style.display = 'block';
-                
-                if (!document.querySelector('.player-info').textContent) {
-                    document.querySelector('.player-info').textContent = `參加者：${playerName}`;
-                }
                 
                 if (!gameStarted) {
                     gameStarted = true;
@@ -284,89 +274,25 @@ async function startGame() {
                     updateScore();
                     initializeScanner();
                 }
+            } else {
+                // 確保等待訊息顯示
+                document.getElementById('waitingMessage').style.display = 'block';
+                document.querySelector('.game-container').style.display = 'none';
             }
         });
 
     } catch (error) {
-        showDebug('初始化遊戲錯誤: ' + error.message, true);
+        showDebug('開始遊戲錯誤: ' + error.message, true);
         alert('發生錯誤：' + error.message);
     }
-}
-
-// 在 DOMContentLoaded 中綁定所有按鈕事件
-document.addEventListener('DOMContentLoaded', () => {
-    showDebug('頁面加載完成，開始綁定按鈕');
-    
-    try {
-        // 綁定開始按鈕
-        const startButton = document.querySelector('button[type="button"]');
-        if (startButton) {
-            startButton.onclick = startGame;
-            showDebug('開始按鈕已綁定');
-        } else {
-            showDebug('未找到開始按鈕', true);
-        }
-        
-        // 綁定返回按鈕
-        const backBtn = document.querySelector('.back-btn');
-        if (backBtn) {
-            backBtn.onclick = () => backToHome('返回');
-            showDebug('返回按鈕已綁定');
-        }
-        
-        // 綁定再次挑戰按鈕
-        const restartBtn = document.querySelector('.restart-btn');
-        if (restartBtn) {
-            restartBtn.onclick = () => backToHome('再次挑戰');
-            showDebug('再次挑戰按鈕已綁定');
-        }
-        
-        showDebug('所有按鈕事件綁定完成');
-    } catch (error) {
-        showDebug('按鈕綁定錯誤: ' + error.message, true);
-    }
-});
-
-function initializeGame(session) {
-    console.log('初始化遊戲...');
-    // 隱藏等待訊息
-    document.getElementById('waitingMessage').style.display = 'none';
-    // 顯示遊戲界面
-    document.querySelector('.game-container').style.display = 'block';
-    
-    // 設置玩家信息
-    const playerInfo = document.querySelector('.player-info');
-    playerInfo.textContent = `參加者：${playerName}`;
-    
-    // 初始化遊戲組件
-    startTimer();
-    updateScore();
-    initializeScanner();
-}
-
-function addScore(isCorrect) {
-    if (isCorrect) {
-        currentScore++;
-        document.getElementById('currentScore').textContent = currentScore;
-    }
-}
-
-function formatDateTime(timestamp) {
-    const date = new Date(timestamp);
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
-    const hours = String(date.getHours()).padStart(2, '0');
-    const minutes = String(date.getMinutes()).padStart(2, '0');
-    return `${year}/${month}/${day} ${hours}:${minutes}`;
-}
+};
 
 // 遊戲結束處理
 window.endGame = function() {
     showDebug('遊戲結束');
     
     try {
-        // 停止掃描器
+        // 停止掃描器和計時器
         if (html5QrcodeScanner) {
             html5QrcodeScanner.stop().catch(err => {
                 showDebug('停止掃描器錯誤: ' + err.message, true);
@@ -374,7 +300,6 @@ window.endGame = function() {
             html5QrcodeScanner = null;
         }
         
-        // 停止計時器
         if (timer) {
             clearInterval(timer);
             timer = null;
@@ -391,15 +316,14 @@ window.endGame = function() {
             database.ref(`gameSessions/${currentSessionId}/scores/${playerName}`).update(scoreData)
                 .then(() => {
                     showDebug('分數已更新到 Firebase');
-                    // 直接顯示結果，不等待對手
-                    showResult();
+                    // 等待一段時間以確保對手的分數也已更新
+                    setTimeout(checkFinalResult, 1000);
                 })
                 .catch(error => {
                     showDebug('更新分數錯誤: ' + error.message, true);
                 });
         }
         
-        // 隱藏遊戲界面
         document.querySelector('.game-container').style.display = 'none';
         
     } catch (error) {
@@ -407,23 +331,49 @@ window.endGame = function() {
     }
 };
 
-// 顯示結果
-function showResult() {
-    showDebug('顯示結果');
+// 檢查最終結果
+function checkFinalResult() {
+    if (!currentSessionId) return;
     
-    try {
-        const resultContainer = document.getElementById('resultContainer');
-        resultContainer.style.display = 'block';
-        
-        document.getElementById('finalScore').textContent = currentScore;
-        
-        // 不等待對手分數，直接顯示當前玩家分數
-        const resultMessage = document.getElementById('resultMessage');
-        if (resultMessage) {
-            resultMessage.textContent = `遊戲完成！你的分數是：${currentScore}`;
-        }
-    } catch (error) {
-        showDebug('顯示結果錯誤: ' + error.message, true);
+    database.ref(`gameSessions/${currentSessionId}/scores`).once('value')
+        .then((snapshot) => {
+            const scores = snapshot.val() || {};
+            const players = Object.entries(scores)
+                .filter(([_, data]) => data.completed)
+                .map(([name, data]) => ({
+                    name,
+                    score: data.score
+                }));
+            
+            if (players.length >= 2) {
+                // 找出當前玩家和對手
+                const currentPlayer = players.find(p => p.name === playerName);
+                const opponent = players.find(p => p.name !== playerName);
+                
+                let resultMessage = '';
+                if (currentPlayer.score > opponent.score) {
+                    resultMessage = `恭喜你獲勝！\n你的分數：${currentPlayer.score}\n對手分數：${opponent.score}`;
+                } else if (currentPlayer.score < opponent.score) {
+                    resultMessage = `很遺憾，你輸了。\n你的分數：${currentPlayer.score}\n對手分數：${opponent.score}`;
+                } else {
+                    resultMessage = `平局！\n你的分數：${currentPlayer.score}\n對手分數：${opponent.score}`;
+                }
+                
+                showResult(resultMessage);
+            } else {
+                showResult(`遊戲完成！\n你的分數：${currentScore}\n等待對手完成...`);
+            }
+        });
+}
+
+// 顯示結果
+function showResult(message) {
+    const resultContainer = document.getElementById('resultContainer');
+    resultContainer.style.display = 'block';
+    
+    const resultMessage = document.getElementById('resultMessage');
+    if (resultMessage) {
+        resultMessage.textContent = message;
     }
 }
 
