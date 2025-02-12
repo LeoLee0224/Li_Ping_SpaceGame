@@ -35,28 +35,32 @@ async function startGame() {
                 status: 'ready'
             });
         } else {
-            // 創建新會話
+            // 創建新會話，等待第二位玩家
             const newSessionRef = await database.ref('gameSessions').push({
                 player1: playerName,
-                status: 'ready'  // 改為 'ready'，不需要等待第二位玩家
+                status: 'waiting'  // 改回 'waiting'
             });
             currentSessionId = newSessionRef.key;
         }
 
-        // 直接開始遊戲
-        document.getElementById('waitingMessage').style.display = 'none';
-        document.querySelector('.input-container').style.display = 'none';
-        document.querySelector('.game-container').style.display = 'block';
-        
-        if (!document.querySelector('.player-info').textContent) {
-            document.querySelector('.player-info').textContent = `參加者：${playerName}`;
-        }
-        
-        startTimer();
-        updateScore();
-        
-        // 在遊戲開始時初始化掃描器
-        initializeScanner();
+        // 監聽會話狀態
+        database.ref(`gameSessions/${currentSessionId}`).on('value', (snapshot) => {
+            const session = snapshot.val();
+            if (session && session.status === 'ready') {
+                // 當兩位玩家都準備好時才開始遊戲
+                document.getElementById('waitingMessage').style.display = 'none';
+                document.querySelector('.input-container').style.display = 'none';
+                document.querySelector('.game-container').style.display = 'block';
+                
+                if (!document.querySelector('.player-info').textContent) {
+                    document.querySelector('.player-info').textContent = `參加者：${playerName}`;
+                }
+                
+                startTimer();
+                updateScore();
+                initializeScanner(); // 初始化掃描器
+            }
+        });
     } catch (error) {
         console.error('Error:', error);
         alert('發生錯誤：' + error.message);
@@ -387,13 +391,18 @@ document.addEventListener('DOMContentLoaded', () => {
 
 // 尋找可用會話的輔助函數
 async function findAvailableSession() {
-    const snapshot = await database.ref('gameSessions')
-        .orderByChild('status')
-        .equalTo('waiting')
-        .once('value');
-    
+    const snapshot = await database.ref('gameSessions').once('value');
     const sessions = snapshot.val();
-    return sessions ? Object.keys(sessions)[0] : null;
+    
+    if (sessions) {
+        for (let sessionId in sessions) {
+            const session = sessions[sessionId];
+            if (session.status === 'waiting' && !session.player2) {
+                return sessionId;
+            }
+        }
+    }
+    return null;
 }
 
 // 初始化事件監聽
