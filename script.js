@@ -401,22 +401,36 @@ function showLeaderboard(fromResultPage = false) {
 
 // 返回主頁面
 function backFromLeaderboard() {
-    document.getElementById('leaderboardContainer').style.display = 'none';
+    // 清理當前遊戲狀態
+    cleanupGame();
     
-    // 如果在遊戲結果頁面點擊的排行榜，返回結果頁面
-    if (document.getElementById('resultContainer').style.display === 'block') {
-        document.getElementById('resultContainer').style.display = 'block';
-    } else {
-        // 否則返回主頁面
-        document.querySelector('.input-container').style.display = 'block';
-    }
+    // 隱藏排行榜
+    document.getElementById('leaderboardContainer').style.display = 'none';
+    document.getElementById('resultContainer').style.display = 'none';
+    
+    // 重置並顯示輸入界面
+    document.querySelector('.input-container').style.display = 'block';
+    document.querySelector('input[type="text"]').value = '';
 }
 
-// 再次挑戰
-function restartGame() {
-    // 清理當前會話
+function cleanupGame() {
+    // 清理 Firebase 監聽器
     if (currentSessionId) {
         database.ref(`gameSessions/${currentSessionId}`).off();
+    }
+    
+    // 停止掃描器
+    if (html5QrcodeScanner) {
+        html5QrcodeScanner.stop().catch(error => {
+            console.error('停止掃描器時出錯:', error);
+        });
+        html5QrcodeScanner = null;
+    }
+    
+    // 停止計時器
+    if (timer) {
+        clearInterval(timer);
+        timer = null;
     }
     
     // 重置遊戲狀態
@@ -424,11 +438,30 @@ function restartGame() {
     timeLeft = 60;
     gameStarted = false;
     currentSessionId = null;
+    playerName = '';
     
-    // 重置界面
+    // 重置分數顯示
+    const scoreElement = document.querySelector('.score');
+    if (scoreElement) {
+        scoreElement.textContent = '目前分數：0';
+    }
+    
+    // 重置計時器顯示
+    const timerElement = document.querySelector('.timer span');
+    if (timerElement) {
+        timerElement.textContent = '60';
+    }
+}
+
+function restartGame() {
+    // 使用相同的清理函數
+    cleanupGame();
+    
+    // 隱藏結果界面
     document.getElementById('resultContainer').style.display = 'none';
+    
+    // 顯示輸入界面
     document.querySelector('.input-container').style.display = 'block';
-    document.querySelector('input[type="text"]').value = '';
 }
 
 // 保存排行榜到本地存儲
@@ -567,17 +600,6 @@ function initializeScanner() {
     html5QrcodeScanner = html5QrCode;
 }
 
-// 清理函數
-function cleanupGame() {
-    if (currentSessionId) {
-        database.ref(`gameSessions/${currentSessionId}`).off();
-    }
-    if (html5QrcodeScanner) {
-        html5QrcodeScanner.stop();
-    }
-    gameStarted = false;
-}
-
 // 在頁面卸載時清理
 window.addEventListener('beforeunload', cleanupGame);
 
@@ -631,4 +653,10 @@ document.addEventListener('DOMContentLoaded', () => {
     if (restartButton) {
         restartButton.onclick = restartGame;
     }
+    
+    // 排行榜按鈕
+    const leaderboardButtons = document.querySelectorAll('.leaderboard-btn');
+    leaderboardButtons.forEach(button => {
+        button.onclick = () => showLeaderboard(false);
+    });
 }); 
