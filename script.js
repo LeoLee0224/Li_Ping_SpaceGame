@@ -92,14 +92,7 @@ window.backToHome = function(buttonType) {
     
     try {
         // 隱藏所有容器
-        const containers = [
-            'leaderboardContainer',
-            'resultContainer',
-            'game-container',
-            'waitingMessage'
-        ];
-        
-        containers.forEach(id => {
+        ['leaderboardContainer', 'resultContainer', 'game-container', 'waitingMessage'].forEach(id => {
             const container = document.getElementById(id);
             if (container) {
                 container.style.display = 'none';
@@ -107,14 +100,30 @@ window.backToHome = function(buttonType) {
         });
         
         // 清理遊戲狀態
-        window.cleanupGame();
+        if (currentSessionId) {
+            database.ref(`gameSessions/${currentSessionId}`).off();
+            currentSessionId = null;
+        }
+        
+        if (html5QrcodeScanner) {
+            html5QrcodeScanner.stop().catch(() => {});
+            html5QrcodeScanner = null;
+        }
+        
+        if (timer) {
+            clearInterval(timer);
+            timer = null;
+        }
+        
+        // 重置遊戲狀態
+        currentScore = 0;
+        timeLeft = 60;
+        gameStarted = false;
         
         // 顯示輸入界面
         const inputContainer = document.querySelector('.input-container');
         if (inputContainer) {
             inputContainer.style.display = 'block';
-            
-            // 清空輸入框
             const nameInput = document.querySelector('input[type="text"]');
             if (nameInput) {
                 nameInput.value = '';
@@ -123,7 +132,7 @@ window.backToHome = function(buttonType) {
         
         showDebug(`${buttonType} 處理完成`);
     } catch (error) {
-        showDebug(`${buttonType} 處理錯誤: ${error.message}`, true);
+        showDebug(`${buttonType} 處理錯誤: ` + error.toString());
     }
 };
 
@@ -133,85 +142,70 @@ window.showLeaderboard = function(fromResultPage = false) {
     const leaderboardList = document.getElementById('leaderboardList');
     leaderboardList.innerHTML = '';
     
-    // 隱藏其他容器
+    // 隱藏其他容器，顯示排行榜
     document.querySelector('.input-container').style.display = 'none';
     document.querySelector('.game-container').style.display = 'none';
     document.getElementById('resultContainer').style.display = 'none';
-    
-    // 顯示排行榜容器
     document.getElementById('leaderboardContainer').style.display = 'block';
     
     // 從 Firebase 獲取排行榜數據
-    database.ref('gameSessions').once('value', (snapshot) => {
-        const sessions = snapshot.val();
-        const scores = [];
-        
-        if (sessions) {
-            Object.values(sessions).forEach(session => {
-                if (session.scores) {
-                    Object.entries(session.scores).forEach(([name, data]) => {
-                        if (data.score !== undefined && data.completed) {
-                            scores.push({
-                                name: name,
-                                score: data.score,
-                                timestamp: data.timestamp || Date.now(),
-                                isCurrentPlayer: name === playerName
-                            });
-                        }
-                    });
+    database.ref('gameSessions').once('value')
+        .then((snapshot) => {
+            const sessions = snapshot.val();
+            const scores = [];
+            
+            if (sessions) {
+                Object.values(sessions).forEach(session => {
+                    if (session.scores) {
+                        Object.entries(session.scores).forEach(([name, data]) => {
+                            if (data.score !== undefined && data.completed) {
+                                scores.push({
+                                    name: name,
+                                    score: data.score,
+                                    timestamp: data.timestamp || Date.now(),
+                                    isCurrentPlayer: name === playerName
+                                });
+                            }
+                        });
+                    }
+                });
+            }
+            
+            // 排序分數
+            scores.sort((a, b) => b.score - a.score);
+            
+            // 顯示所有分數
+            scores.forEach((score, index) => {
+                const scoreElement = document.createElement('div');
+                scoreElement.className = 'leaderboard-item';
+                if (score.isCurrentPlayer) {
+                    scoreElement.classList.add('current-player');
                 }
+                
+                scoreElement.innerHTML = `
+                    <span class="rank">${index + 1}</span>
+                    <span class="name">${score.name}</span>
+                    <span class="score">${score.score}</span>
+                `;
+                
+                leaderboardList.appendChild(scoreElement);
             });
-        }
-        
-        // 排序分數
-        scores.sort((a, b) => b.score - a.score || a.timestamp - b.timestamp);
-        
-        // 找到當前玩家的排名
-        const currentPlayerRank = scores.findIndex(score => score.isCurrentPlayer) + 1;
-        showDebug(`當前玩家排名: ${currentPlayerRank}`);
-        
-        // 顯示所有分數
-        scores.forEach((score, index) => {
-            const scoreElement = document.createElement('div');
-            scoreElement.className = 'leaderboard-item';
             
-            if (index < 3) {
-                scoreElement.classList.add('top-3', `rank-${index + 1}`);
+            // 如果找不到當前玩家的分數，添加到最後
+            if (!scores.some(s => s.isCurrentPlayer) && currentScore > 0) {
+                const playerElement = document.createElement('div');
+                playerElement.className = 'leaderboard-item current-player';
+                playerElement.innerHTML = `
+                    <span class="rank">${scores.length + 1}</span>
+                    <span class="name">${playerName}</span>
+                    <span class="score">${currentScore}</span>
+                `;
+                leaderboardList.appendChild(playerElement);
             }
-            
-            if (score.isCurrentPlayer) {
-                scoreElement.classList.add('current-player');
-            }
-            
-            scoreElement.innerHTML = `
-                <span class="rank">${index + 1}</span>
-                <span class="name">${score.name}</span>
-                <span class="score">${score.score}</span>
-                <span class="time">${new Date(score.timestamp).toLocaleTimeString()}</span>
-            `;
-            
-            leaderboardList.appendChild(scoreElement);
+        })
+        .catch(error => {
+            showDebug('獲取排行榜數據錯誤: ' + error.message, true);
         });
-        
-        // 如果當前玩家不在可見範圍內，添加一個分隔線和玩家的分數
-        if (currentPlayerRank > 10 && scores.find(s => s.isCurrentPlayer)) {
-            const separator = document.createElement('div');
-            separator.className = 'separator';
-            separator.textContent = '...';
-            leaderboardList.appendChild(separator);
-            
-            const playerScore = scores.find(s => s.isCurrentPlayer);
-            const playerElement = document.createElement('div');
-            playerElement.className = 'leaderboard-item current-player';
-            playerElement.innerHTML = `
-                <span class="rank">${currentPlayerRank}</span>
-                <span class="name">${playerScore.name}</span>
-                <span class="score">${playerScore.score}</span>
-                <span class="time">${new Date(playerScore.timestamp).toLocaleTimeString()}</span>
-            `;
-            leaderboardList.appendChild(playerElement);
-        }
-    });
 };
 
 // 尋找可用的會話
@@ -367,105 +361,70 @@ function formatDateTime(timestamp) {
     return `${year}/${month}/${day} ${hours}:${minutes}`;
 }
 
-function endGame() {
-    // 立即停止掃描器
-    if (html5QrcodeScanner) {
-        html5QrcodeScanner.stop().then(() => {
-            console.log('掃描器已停止');
-        }).catch(error => {
-            console.error('停止掃描器時出錯:', error);
-        });
-    }
+// 遊戲結束處理
+window.endGame = function() {
+    showDebug('遊戲結束');
     
-    // 停止計時器
-    if (timer) {
-        clearInterval(timer);
-        timer = null;
-    }
-    
-    // 隱藏遊戲界面
-    document.querySelector('.game-container').style.display = 'none';
-    
-    // 更新分數到 Firebase
-    if (currentSessionId) {
-        database.ref(`gameSessions/${currentSessionId}/scores/${playerName}`).update({
-            score: currentScore,
-            timestamp: Date.now(),
-            completed: true
-        });
-        
-        // 監聽對手分數
-        checkGameResults();
-    }
-}
-
-function checkGameResults() {
-    const resultContainer = document.getElementById('resultContainer');
-    const finalScoreElement = document.getElementById('finalScore');
-    const opponentScoreElement = document.getElementById('opponentScore');
-    const resultMessageElement = document.getElementById('resultMessage');
-    
-    // 顯示結果容器
-    resultContainer.style.display = 'block';
-    finalScoreElement.textContent = currentScore;
-    
-    // 監聽一次會話數據
-    database.ref(`gameSessions/${currentSessionId}`).once('value', (snapshot) => {
-        const session = snapshot.val();
-        if (session && session.scores) {
-            const scores = session.scores;
-            const players = Object.keys(scores);
-            
-            // 如果有兩個玩家的分數
-            if (players.length === 2) {
-                const opponent = players.find(p => p !== playerName);
-                if (opponent && scores[opponent].completed) {
-                    const opponentScore = scores[opponent].score;
-                    opponentScoreElement.textContent = opponentScore;
-                    
-                    // 判斷勝負
-                    if (currentScore > opponentScore) {
-                        resultMessageElement.textContent = '恭喜你獲勝！';
-                        resultMessageElement.style.color = '#28a745';
-                    } else if (currentScore < opponentScore) {
-                        resultMessageElement.textContent = '很遺憾，你輸了！';
-                        resultMessageElement.style.color = '#dc3545';
-                    } else {
-                        resultMessageElement.textContent = '平局！';
-                        resultMessageElement.style.color = '#ffc107';
-                    }
-                } else {
-                    // 對手還未完成
-                    opponentScoreElement.textContent = '等待對手完成...';
-                    resultMessageElement.textContent = '';
-                    
-                    // 設置監聽器等待對手完成
-                    const opponentRef = database.ref(`gameSessions/${currentSessionId}/scores/${opponent}`);
-                    opponentRef.on('value', (opponentSnapshot) => {
-                        const opponentData = opponentSnapshot.val();
-                        if (opponentData && opponentData.completed) {
-                            opponentScoreElement.textContent = opponentData.score;
-                            
-                            // 判斷勝負
-                            if (currentScore > opponentData.score) {
-                                resultMessageElement.textContent = '恭喜你獲勝！';
-                                resultMessageElement.style.color = '#28a745';
-                            } else if (currentScore < opponentData.score) {
-                                resultMessageElement.textContent = '很遺憾，你輸了！';
-                                resultMessageElement.style.color = '#dc3545';
-                            } else {
-                                resultMessageElement.textContent = '平局！';
-                                resultMessageElement.style.color = '#ffc107';
-                            }
-                            
-                            // 移除監聽器
-                            opponentRef.off();
-                        }
-                    });
-                }
-            }
+    try {
+        // 停止掃描器
+        if (html5QrcodeScanner) {
+            html5QrcodeScanner.stop().catch(err => {
+                showDebug('停止掃描器錯誤: ' + err.message, true);
+            });
+            html5QrcodeScanner = null;
         }
-    });
+        
+        // 停止計時器
+        if (timer) {
+            clearInterval(timer);
+            timer = null;
+        }
+        
+        // 更新分數到 Firebase
+        if (currentSessionId && playerName) {
+            const scoreData = {
+                score: currentScore,
+                timestamp: Date.now(),
+                completed: true
+            };
+            
+            database.ref(`gameSessions/${currentSessionId}/scores/${playerName}`).update(scoreData)
+                .then(() => {
+                    showDebug('分數已更新到 Firebase');
+                    // 直接顯示結果，不等待對手
+                    showResult();
+                })
+                .catch(error => {
+                    showDebug('更新分數錯誤: ' + error.message, true);
+                });
+        }
+        
+        // 隱藏遊戲界面
+        document.querySelector('.game-container').style.display = 'none';
+        
+    } catch (error) {
+        showDebug('結束遊戲錯誤: ' + error.message, true);
+    }
+};
+
+// 顯示結果
+function showResult() {
+    showDebug('顯示結果');
+    
+    try {
+        const resultContainer = document.getElementById('resultContainer');
+        resultContainer.style.display = 'block';
+        
+        document.getElementById('finalScore').textContent = currentScore;
+        
+        // 不等待對手分數，直接顯示當前玩家分數
+        const resultMessage = document.getElementById('resultMessage');
+        if (resultMessage) {
+            resultMessage.textContent = `遊戲完成！你的分數是：${currentScore}`;
+        }
+    } catch (error) {
+        showDebug('顯示結果錯誤: ' + error.message, true);
+    }
 }
 
 // 計時器函數
