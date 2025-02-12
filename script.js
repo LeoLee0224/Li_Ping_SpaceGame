@@ -133,52 +133,100 @@ function formatDateTime(timestamp) {
 }
 
 function endGame() {
+    // 立即停止掃描器
     if (html5QrcodeScanner) {
-        html5QrcodeScanner.stop();
+        html5QrcodeScanner.stop().then(() => {
+            console.log('掃描器已停止');
+        }).catch(error => {
+            console.error('停止掃描器時出錯:', error);
+        });
     }
     
+    // 停止計時器
     if (timer) {
         clearInterval(timer);
         timer = null;
     }
     
-    // 更新遊戲狀態
+    // 隱藏遊戲界面
+    document.querySelector('.game-container').style.display = 'none';
+    
+    // 更新分數到 Firebase
     if (currentSessionId) {
         database.ref(`gameSessions/${currentSessionId}/scores/${playerName}`).update({
             score: currentScore,
-            timestamp: Date.now()
+            timestamp: Date.now(),
+            completed: true
         });
+        
+        // 監聽對手分數
+        checkGameResults();
     }
-    
-    // 顯示結果
-    document.querySelector('.game-container').style.display = 'none';
-    document.getElementById('resultContainer').style.display = 'block';
-    document.getElementById('finalScore').textContent = currentScore;
-    
-    gameStarted = false;
 }
 
-function checkGameCompletion() {
-    database.ref(`gameSessions/${currentSessionId}/scores`).on('value', (snapshot) => {
-        const scores = snapshot.val();
-        if (scores) {
+function checkGameResults() {
+    const resultContainer = document.getElementById('resultContainer');
+    const finalScoreElement = document.getElementById('finalScore');
+    const opponentScoreElement = document.getElementById('opponentScore');
+    const resultMessageElement = document.getElementById('resultMessage');
+    
+    // 顯示結果容器
+    resultContainer.style.display = 'block';
+    finalScoreElement.textContent = currentScore;
+    
+    // 監聽一次會話數據
+    database.ref(`gameSessions/${currentSessionId}`).once('value', (snapshot) => {
+        const session = snapshot.val();
+        if (session && session.scores) {
+            const scores = session.scores;
             const players = Object.keys(scores);
-            if (players.length === 2 && players.every(player => scores[player].completed)) {
-                const otherPlayer = players.find(p => p !== playerName);
-                const otherScore = scores[otherPlayer].score;
-                
-                document.getElementById('opponentScore').textContent = otherScore;
-                
-                const resultMessage = document.getElementById('resultMessage');
-                if (currentScore > otherScore) {
-                    resultMessage.textContent = '恭喜你獲勝！';
-                    resultMessage.className = 'result-message winner';
-                } else if (currentScore < otherScore) {
-                    resultMessage.textContent = '很遺憾，你輸了！';
-                    resultMessage.className = 'result-message loser';
+            
+            // 如果有兩個玩家的分數
+            if (players.length === 2) {
+                const opponent = players.find(p => p !== playerName);
+                if (opponent && scores[opponent].completed) {
+                    const opponentScore = scores[opponent].score;
+                    opponentScoreElement.textContent = opponentScore;
+                    
+                    // 判斷勝負
+                    if (currentScore > opponentScore) {
+                        resultMessageElement.textContent = '恭喜你獲勝！';
+                        resultMessageElement.style.color = '#28a745';
+                    } else if (currentScore < opponentScore) {
+                        resultMessageElement.textContent = '很遺憾，你輸了！';
+                        resultMessageElement.style.color = '#dc3545';
+                    } else {
+                        resultMessageElement.textContent = '平局！';
+                        resultMessageElement.style.color = '#ffc107';
+                    }
                 } else {
-                    resultMessage.textContent = '平局！';
-                    resultMessage.className = 'result-message';
+                    // 對手還未完成
+                    opponentScoreElement.textContent = '等待對手完成...';
+                    resultMessageElement.textContent = '';
+                    
+                    // 設置監聽器等待對手完成
+                    const opponentRef = database.ref(`gameSessions/${currentSessionId}/scores/${opponent}`);
+                    opponentRef.on('value', (opponentSnapshot) => {
+                        const opponentData = opponentSnapshot.val();
+                        if (opponentData && opponentData.completed) {
+                            opponentScoreElement.textContent = opponentData.score;
+                            
+                            // 判斷勝負
+                            if (currentScore > opponentData.score) {
+                                resultMessageElement.textContent = '恭喜你獲勝！';
+                                resultMessageElement.style.color = '#28a745';
+                            } else if (currentScore < opponentData.score) {
+                                resultMessageElement.textContent = '很遺憾，你輸了！';
+                                resultMessageElement.style.color = '#dc3545';
+                            } else {
+                                resultMessageElement.textContent = '平局！';
+                                resultMessageElement.style.color = '#ffc107';
+                            }
+                            
+                            // 移除監聽器
+                            opponentRef.off();
+                        }
+                    });
                 }
             }
         }
@@ -366,20 +414,19 @@ function backFromLeaderboard() {
 
 // 再次挑戰
 function restartGame() {
+    // 清理當前會話
+    if (currentSessionId) {
+        database.ref(`gameSessions/${currentSessionId}`).off();
+    }
+    
     // 重置遊戲狀態
     currentScore = 0;
     timeLeft = 60;
     gameStarted = false;
-    if (timer) {
-        clearInterval(timer);
-        timer = null;
-    }
+    currentSessionId = null;
     
-    // 隱藏所有容器
+    // 重置界面
     document.getElementById('resultContainer').style.display = 'none';
-    document.getElementById('leaderboardContainer').style.display = 'none';
-    
-    // 顯示輸入容器
     document.querySelector('.input-container').style.display = 'block';
     document.querySelector('input[type="text"]').value = '';
 }
