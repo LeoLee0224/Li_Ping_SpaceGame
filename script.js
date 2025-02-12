@@ -21,7 +21,6 @@ async function findAvailableSession() {
     if (sessions) {
         for (let sessionId in sessions) {
             const session = sessions[sessionId];
-            // 確保只返回等待中且沒有第二位玩家的會話
             if (session.status === 'waiting' && !session.player2) {
                 return sessionId;
             }
@@ -39,12 +38,13 @@ async function startGame() {
         return;
     }
 
-    // 顯示等待訊息
-    document.getElementById('waitingMessage').style.display = 'block';
+    // 隱藏輸入界面，顯示等待訊息
     document.querySelector('.input-container').style.display = 'none';
+    document.getElementById('waitingMessage').style.display = 'block';
+    document.querySelector('.game-container').style.display = 'none';
     
     try {
-        // 移除之前的監聽器（如果存在）
+        // 清除之前的監聽器
         if (currentSessionId) {
             database.ref(`gameSessions/${currentSessionId}`).off();
         }
@@ -52,14 +52,16 @@ async function startGame() {
         const availableSession = await findAvailableSession();
         
         if (availableSession) {
-            // 加入現有會話
+            console.log('加入現有會話');
             currentSessionId = availableSession;
+            // 更新會話狀態
             await database.ref(`gameSessions/${currentSessionId}`).update({
                 player2: playerName,
                 status: 'ready'
             });
         } else {
-            // 創建新會話
+            console.log('創建新會話');
+            // 創建新會話並等待
             const newSessionRef = await database.ref('gameSessions').push({
                 player1: playerName,
                 status: 'waiting',
@@ -68,18 +70,25 @@ async function startGame() {
             currentSessionId = newSessionRef.key;
         }
 
-        // 設置會話監聽器
+        // 監聽會話狀態變化
         database.ref(`gameSessions/${currentSessionId}`).on('value', (snapshot) => {
             const session = snapshot.val();
-            console.log('Session update:', session); // 調試用
-            
-            if (session && session.status === 'ready' && !gameStarted) {
-                gameStarted = true;
-                startGameSession();
-            } else if (session && session.status === 'waiting') {
-                // 確保等待訊息顯示
+            console.log('會話狀態更新:', session);
+
+            if (!session) {
+                console.log('會話不存在');
+                return;
+            }
+
+            if (session.status === 'waiting') {
+                console.log('等待玩家加入...');
                 document.getElementById('waitingMessage').style.display = 'block';
                 document.querySelector('.game-container').style.display = 'none';
+            } 
+            else if (session.status === 'ready' && !gameStarted) {
+                console.log('開始遊戲');
+                gameStarted = true;
+                initializeGame(session);
             }
         });
 
@@ -89,15 +98,18 @@ async function startGame() {
     }
 }
 
-function startGameSession() {
-    // 隱藏等待訊息，顯示遊戲界面
+function initializeGame(session) {
+    console.log('初始化遊戲...');
+    // 隱藏等待訊息
     document.getElementById('waitingMessage').style.display = 'none';
+    // 顯示遊戲界面
     document.querySelector('.game-container').style.display = 'block';
     
     // 設置玩家信息
-    document.querySelector('.player-info').textContent = `參加者：${playerName}`;
+    const playerInfo = document.querySelector('.player-info');
+    playerInfo.textContent = `參加者：${playerName}`;
     
-    // 初始化遊戲
+    // 初始化遊戲組件
     startTimer();
     updateScore();
     initializeScanner();
@@ -121,30 +133,29 @@ function formatDateTime(timestamp) {
 }
 
 function endGame() {
-    clearInterval(timer);
-    
-    if (currentSessionId && playerName) {
-        // 更新最終分數
-        database.ref(`gameSessions/${currentSessionId}/scores/${playerName}`).set({
-            score: currentScore,
-            completed: true,
-            timestamp: firebase.database.ServerValue.TIMESTAMP
-        }).then(() => {
-            document.querySelector('.game-container').style.display = 'none';
-            document.getElementById('resultContainer').style.display = 'block';
-            document.getElementById('finalScore').textContent = currentScore;
-            checkGameCompletion();
-        });
-    }
-    
-    // 在遊戲結束時停止掃描
     if (html5QrcodeScanner) {
-        html5QrcodeScanner.stop().then(() => {
-            console.log("掃描器已停止");
-        }).catch((err) => {
-            console.error("停止掃描器時出錯:", err);
+        html5QrcodeScanner.stop();
+    }
+    
+    if (timer) {
+        clearInterval(timer);
+        timer = null;
+    }
+    
+    // 更新遊戲狀態
+    if (currentSessionId) {
+        database.ref(`gameSessions/${currentSessionId}/scores/${playerName}`).update({
+            score: currentScore,
+            timestamp: Date.now()
         });
     }
+    
+    // 顯示結果
+    document.querySelector('.game-container').style.display = 'none';
+    document.getElementById('resultContainer').style.display = 'block';
+    document.getElementById('finalScore').textContent = currentScore;
+    
+    gameStarted = false;
 }
 
 function checkGameCompletion() {
