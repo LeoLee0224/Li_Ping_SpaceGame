@@ -436,7 +436,13 @@ function showLeaderboard(fromResultPage = false) {
     });
 }
 
-// 保留原有的 cleanupGame 函數
+// 保留 restartGame 函數
+function restartGame() {
+    showDebug('執行 restartGame');
+    backToHome('再次挑戰');
+}
+
+// 保留 cleanupGame 函數
 function cleanupGame() {
     showDebug('執行 cleanupGame');
     try {
@@ -531,7 +537,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // 綁定再次挑戰按鈕
         const restartBtn = document.querySelector('.restart-btn');
         if (restartBtn) {
-            restartBtn.onclick = () => backToHome('再次挑戰');
+            restartBtn.onclick = restartGame;
             showDebug('再次挑戰按鈕已綁定');
         }
         
