@@ -363,6 +363,7 @@ button:hover {
     color: #333;
     margin-bottom: 20px;
     font-size: 1.2em;
+    padding: 0 15px;
 }
 
 .options-container {
@@ -371,10 +372,11 @@ button:hover {
     gap: 12px;
     max-width: 500px;
     margin: 0 auto;
+    padding: 0 15px;
 }
 
 .option-btn {
-    padding: 15px;
+    padding: 15px 20px;
     font-size: 16px;
     text-align: left;
     background-color: white;
@@ -382,6 +384,9 @@ button:hover {
     border-radius: 5px;
     cursor: pointer;
     transition: all 0.3s ease;
+    color: #333;
+    white-space: normal;
+    word-wrap: break-word;
 }
 
 .option-btn:hover {

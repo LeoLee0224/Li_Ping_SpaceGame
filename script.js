@@ -473,7 +473,11 @@ function showQuestion(qrContent) {
     const optionButtons = document.querySelectorAll('.option-btn');
     optionButtons.forEach((btn, index) => {
         const option = ['A', 'B', 'C'][index];
-        btn.textContent = `${option}: ${question.options[option]}`;
+        btn.textContent = `${option}. ${question.options[option]}`;
+        
+        btn.style.backgroundColor = 'white';
+        btn.style.color = '#333';
+        
         btn.onclick = () => handleAnswer(qrContent, option);
     });
 }
