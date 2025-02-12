@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>太空安全你知多少</title>
+    <link rel="stylesheet" href="styles.css">
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+    <script src="firebase-config.js"></script>
+</head>
+<body>
+    <div class="page">
+        <h1>歡迎來到太空安全知識競賽</h1>
+        <div class="input-container">
+            <input type="text" placeholder="請輸入您的名字">
+            <button>確認</button>
+            <button class="leaderboard-btn">查看排行榜</button>
+        </div>
+        <div class="game-container" style="display: none;">
+            <div class="player-info"></div>
+            <div class="score">目前分數：0</div>
+            <div class="timer">剩餘時間：<span>60</span>秒</div>
+            <div class="scanner-container">
+                <div class="scanner-frame"></div>
+            </div>
+            <div class="button-container">
+                <button class="correct-btn">✓</button>
+                <button class="wrong-btn">✗</button>
+                <button class="complete-btn">完成探測</button>
+            </div>
+        </div>
+        <div id="waitingMessage" class="waiting-message" style="display: none;">
+            <div class="spinner"></div>
+            <p>等待對手加入...</p>
+        </div>
+        <div id="resultContainer" class="result-container" style="display: none;">
+            <h2>探測完成！</h2>
+            <p>你的分數：<span id="finalScore">0</span></p>
+            <p>對手分數：<span id="opponentScore">等待對手完成...</span></p>
+            <div id="resultMessage" class="result-message"></div>
+            <div class="button-container">
+                <button class="leaderboard-btn">查看排行榜</button>
+                <button class="restart-btn">再次挑戰</button>
+            </div>
+        </div>
+        <div id="leaderboardContainer" class="leaderboard-container" style="display: none;">
+            <h2>排行榜</h2>
+            <div id="leaderboardList"></div>
+            <button class="back-btn">返回</button>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html> 

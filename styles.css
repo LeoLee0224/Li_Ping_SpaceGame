@@ -1,0 +1,341 @@
+body {
+    font-family: Arial, sans-serif;
+    margin: 0;
+    padding: 20px;
+    background-color: #f0f0f0;
+}
+
+.page {
+    max-width: 600px;
+    margin: 0 auto;
+    padding: 20px;
+    background-color: white;
+    border-radius: 10px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}
+
+h1 {
+    text-align: center;
+    color: #333;
+}
+
+.input-container {
+    text-align: center;
+    margin: 20px 0;
+}
+
+input[type="text"] {
+    padding: 10px;
+    font-size: 16px;
+    width: 200px;
+    margin-right: 10px;
+}
+
+button {
+    padding: 10px 20px;
+    font-size: 16px;
+    background-color: #4CAF50;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+}
+
+button:hover {
+    background-color: #45a049;
+}
+
+.player-info {
+    text-align: center;
+    font-size: 18px;
+    margin: 10px 0;
+    color: #333;
+}
+
+.timer, .score {
+    text-align: center;
+    font-size: 18px;
+    margin: 10px 0;
+    color: #333;
+}
+
+.scanner-container {
+    width: 100%;
+    display: flex;
+    justify-content: center;
+    margin: 20px 0;
+}
+
+.scanner-frame {
+    width: 300px;
+    height: 300px;
+    border: 3px solid #4CAF50;
+    border-radius: 10px;
+    position: relative;
+}
+
+.scanner-frame::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 0;
+    width: 100%;
+    height: 2px;
+    background-color: rgba(76, 175, 80, 0.5);
+    animation: scan 2s linear infinite;
+}
+
+@keyframes scan {
+    0% { transform: translateY(-100px); }
+    100% { transform: translateY(100px); }
+}
+
+.button-container {
+    text-align: center;
+    margin: 20px 0;
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+}
+
+.correct-btn {
+    background-color: #28a745;
+}
+
+.wrong-btn {
+    background-color: #dc3545;
+}
+
+.complete-btn {
+    background-color: #007bff;
+}
+
+.waiting-message {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background-color: rgba(0, 0, 0, 0.8);
+    color: white;
+    padding: 20px;
+    border-radius: 10px;
+    text-align: center;
+    z-index: 1000;
+}
+
+.spinner {
+    width: 40px;
+    height: 40px;
+    border: 4px solid #f3f3f3;
+    border-top: 4px solid #3498db;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin: 10px auto;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+.score-animation {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 24px;
+    font-weight: bold;
+    animation: fadeUp 1s ease-out;
+    z-index: 1000;
+}
+
+.score-animation.correct {
+    color: #28a745;
+}
+
+.score-animation.wrong {
+    color: #dc3545;
+}
+
+@keyframes fadeUp {
+    0% {
+        opacity: 1;
+        transform: translate(-50%, -50%);
+    }
+    100% {
+        opacity: 0;
+        transform: translate(-50%, -100%);
+    }
+}
+
+.result-container {
+    text-align: center;
+    margin: 20px 0;
+    padding: 20px;
+    background-color: #f8f9fa;
+    border-radius: 10px;
+}
+
+.result-message {
+    margin-top: 20px;
+    padding: 10px;
+    border-radius: 5px;
+    font-weight: bold;
+}
+
+.result-message.winner {
+    background-color: #d4edda;
+    color: #155724;
+}
+
+.result-message.loser {
+    background-color: #f8d7da;
+    color: #721c24;
+}
+
+.leaderboard-container {
+    text-align: center;
+    padding: 20px;
+    max-height: 80vh;
+    overflow-y: auto;
+}
+
+.leaderboard-container h2 {
+    margin-bottom: 20px;
+    color: #333;
+}
+
+.leaderboard-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 15px;
+    margin: 8px 0;
+    background-color: #f8f9fa;
+    border-radius: 5px;
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+}
+
+/* 前三名的特殊樣式 */
+.leaderboard-item.top-3 {
+    color: white;
+    padding-left: 45px;
+    animation: shine 2s infinite;
+}
+
+.leaderboard-item.rank-1 {
+    background: linear-gradient(45deg, #FFD700, #FFA500);
+}
+
+.leaderboard-item.rank-2 {
+    background: linear-gradient(45deg, #C0C0C0, #A9A9A9);
+}
+
+.leaderboard-item.rank-3 {
+    background: linear-gradient(45deg, #CD7F32, #8B4513);
+}
+
+.leaderboard-item.top-3::before {
+    content: '';
+    position: absolute;
+    left: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 24px;
+    height: 24px;
+    background-size: contain;
+    background-repeat: no-repeat;
+}
+
+.leaderboard-item.rank-1::before {
+    content: '👑';
+}
+
+.leaderboard-item.rank-2::before {
+    content: '🥈';
+}
+
+.leaderboard-item.rank-3::before {
+    content: '🥉';
+}
+
+/* 前三名的文字顏色 */
+.leaderboard-item.top-3 .rank,
+.leaderboard-item.top-3 .name,
+.leaderboard-item.top-3 .score,
+.leaderboard-item.top-3 .time {
+    color: white;
+}
+
+@keyframes shine {
+    0% {
+        box-shadow: 0 0 5px rgba(255, 255, 255, 0.3);
+    }
+    50% {
+        box-shadow: 0 0 20px rgba(255, 255, 255, 0.5);
+    }
+    100% {
+        box-shadow: 0 0 5px rgba(255, 255, 255, 0.3);
+    }
+}
+
+/* 當前玩家的動畫效果（如果與前三名重疊，優先顯示前三名樣式） */
+.leaderboard-item.current-player:not(.top-3) {
+    background-color: #e3f2fd;
+    border: 2px solid #2196f3;
+    transform: scale(1.02);
+    animation: highlight 1s ease-in-out infinite;
+}
+
+@keyframes highlight {
+    0% { box-shadow: 0 0 5px rgba(33, 150, 243, 0.3); }
+    50% { box-shadow: 0 0 15px rgba(33, 150, 243, 0.5); }
+    100% { box-shadow: 0 0 5px rgba(33, 150, 243, 0.3); }
+}
+
+.leaderboard-item .rank {
+    font-weight: bold;
+    color: #666;
+    width: 40px;
+}
+
+.leaderboard-item .name {
+    flex: 1;
+    text-align: left;
+    padding: 0 15px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.leaderboard-item .score {
+    font-weight: bold;
+    color: #28a745;
+    width: 80px;
+    text-align: right;
+    padding: 0 15px;
+}
+
+.leaderboard-item .time {
+    color: #666;
+    font-size: 0.9em;
+    width: 150px;
+    text-align: right;
+}
+
+.button-container {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+    margin: 20px 0;
+}
+
+.back-btn, .restart-btn, .leaderboard-btn {
+    background-color: #6c757d;
+}
+
+.back-btn:hover, .restart-btn:hover, .leaderboard-btn:hover {
+    background-color: #5a6268;
+}
