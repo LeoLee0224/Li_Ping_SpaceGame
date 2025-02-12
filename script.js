@@ -48,7 +48,7 @@ const database = firebase.database();
 // 初始化變量
 let currentScore = 0;
 let timer = null;
-let timeLeft = 60;
+let timeLeft = 30;
 let currentSessionId = null;
 let playerName = '';
 let gameStarted = false;
@@ -282,7 +282,7 @@ function startTimer() {
         clearInterval(timer);
     }
     
-    timeLeft = 60;
+    timeLeft = 30;
     updateTimerDisplay();
     
     timer = setInterval(() => {
@@ -436,92 +436,117 @@ function showLeaderboard(fromResultPage = false) {
     });
 }
 
-// 修改返回按鈕的綁定方式
-document.addEventListener('DOMContentLoaded', () => {
-    console.log('頁面加載完成');
+// 統一的返回首頁函數
+function backToHome(buttonType) {
+    showDebug(`${buttonType} 按鈕被點擊`);
     
-    // 使用 onclick 而不是 addEventListener
-    const backButton = document.querySelector('.back-btn');
-    if (backButton) {
-        backButton.onclick = function() {
-            console.log('返回按鈕點擊 - 開始處理');
-            
-            try {
-                // 隱藏所有容器
-                document.getElementById('leaderboardContainer').style.display = 'none';
-                document.getElementById('resultContainer').style.display = 'none';
-                document.querySelector('.game-container').style.display = 'none';
-                
-                // 顯示輸入界面
-                document.querySelector('.input-container').style.display = 'block';
-                
-                // 清空輸入框
-                const nameInput = document.querySelector('input[type="text"]');
-                if (nameInput) {
-                    nameInput.value = '';
-                }
-                
-                // 清理遊戲狀態
-                cleanupGame();
-                
-                console.log('返回按鈕處理完成');
-            } catch (error) {
-                console.error('返回按鈕處理錯誤：', error);
-            }
-        };
-        console.log('返回按鈕事件已綁定');
-    } else {
-        console.error('未找到返回按鈕元素');
-    }
-});
-
-// 確保 cleanupGame 函數存在
-function cleanupGame() {
     try {
-        console.log('開始清理遊戲狀態');
+        // 1. 先隱藏所有容器
+        const containers = [
+            'leaderboardContainer',
+            'resultContainer',
+            'game-container'
+        ];
         
-        // 清理 Firebase 監聽器
+        containers.forEach(id => {
+            const container = document.getElementById(id);
+            if (container) {
+                container.style.display = 'none';
+                showDebug(`隱藏 ${id}`);
+            }
+        });
+        
+        // 2. 清理遊戲狀態
         if (currentSessionId) {
             database.ref(`gameSessions/${currentSessionId}`).off();
+            showDebug('清理 Firebase 監聽器');
         }
         
-        // 停止掃描器
         if (html5QrcodeScanner) {
-            html5QrcodeScanner.stop().catch(error => {
-                console.error('停止掃描器時出錯:', error);
+            html5QrcodeScanner.stop().catch(err => {
+                showDebug('停止掃描器錯誤: ' + err.message, true);
             });
             html5QrcodeScanner = null;
+            showDebug('停止掃描器');
         }
         
-        // 停止計時器
         if (timer) {
             clearInterval(timer);
             timer = null;
+            showDebug('清理計時器');
         }
         
-        // 重置遊戲狀態
+        // 3. 重置所有遊戲變量
         currentScore = 0;
         timeLeft = 60;
         gameStarted = false;
         currentSessionId = null;
         playerName = '';
         
-        console.log('遊戲狀態清理完成');
+        showDebug('重置遊戲變量');
+        
+        // 4. 顯示輸入界面
+        const inputContainer = document.querySelector('.input-container');
+        if (inputContainer) {
+            inputContainer.style.display = 'block';
+            showDebug('顯示輸入界面');
+            
+            // 5. 清空輸入框
+            const nameInput = document.querySelector('input[type="text"]');
+            if (nameInput) {
+                nameInput.value = '';
+                showDebug('清空輸入框');
+            }
+        }
+        
+        showDebug(`${buttonType} 處理完成`);
+        
     } catch (error) {
-        console.error('清理遊戲狀態時出錯：', error);
+        showDebug(`${buttonType} 處理錯誤: ${error.message}`, true);
     }
 }
 
-function restartGame() {
-    // 使用相同的清理函數
-    cleanupGame();
+// 在 DOMContentLoaded 中綁定按鈕事件
+document.addEventListener('DOMContentLoaded', () => {
+    showDebug('頁面加載完成');
     
-    // 隱藏結果界面
-    document.getElementById('resultContainer').style.display = 'none';
-    
-    // 顯示輸入界面
-    document.querySelector('.input-container').style.display = 'block';
-}
+    try {
+        // 綁定返回按鈕
+        const backBtn = document.querySelector('.back-btn');
+        if (backBtn) {
+            backBtn.onclick = () => backToHome('返回');
+            showDebug('返回按鈕已綁定');
+        }
+        
+        // 綁定再次挑戰按鈕
+        const restartBtn = document.querySelector('.restart-btn');
+        if (restartBtn) {
+            restartBtn.onclick = () => backToHome('再次挑戰');
+            showDebug('再次挑戰按鈕已綁定');
+        }
+        
+        showDebug('所有按鈕事件綁定完成');
+    } catch (error) {
+        showDebug('按鈕綁定錯誤: ' + error.message, true);
+    }
+});
+
+// 確保在頁面卸載時清理
+window.addEventListener('beforeunload', () => {
+    try {
+        if (currentSessionId) {
+            database.ref(`gameSessions/${currentSessionId}`).off();
+        }
+        if (html5QrcodeScanner) {
+            html5QrcodeScanner.stop();
+        }
+        if (timer) {
+            clearInterval(timer);
+        }
+    } catch (error) {
+        showDebug('頁面卸載清理錯誤: ' + error.message, true);
+    }
+});
 
 // 保存排行榜到本地存儲
 function saveLeaderboard() {
