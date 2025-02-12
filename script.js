@@ -314,8 +314,9 @@ function showPage(pageNumber) {
 
 // 顯示排行榜
 function showLeaderboard(fromResultPage = false) {
+    console.log('顯示排行榜，來自結果頁面：', fromResultPage);
     const leaderboardList = document.getElementById('leaderboardList');
-    leaderboardList.innerHTML = ''; // 清空現有內容
+    leaderboardList.innerHTML = '';
     
     // 隱藏其他容器
     document.querySelector('.input-container').style.display = 'none';
@@ -348,31 +349,19 @@ function showLeaderboard(fromResultPage = false) {
             });
         }
         
-        // 排序分數（先按分數降序，同分按時間升序）
-        scores.sort((a, b) => {
-            if (b.score !== a.score) {
-                return b.score - a.score;
-            }
-            return a.timestamp - b.timestamp;
-        });
+        // 排序分數
+        scores.sort((a, b) => b.score - a.score || a.timestamp - b.timestamp);
         
         // 找到當前玩家的排名
         const currentPlayerRank = scores.findIndex(score => score.isCurrentPlayer) + 1;
+        console.log('當前玩家排名：', currentPlayerRank);
         
         // 顯示前10名
         scores.slice(0, 10).forEach((score, index) => {
             const scoreElement = document.createElement('div');
             scoreElement.className = 'leaderboard-item';
-            
-            // 添加前三名的特殊類
-            if (index < 3) {
-                scoreElement.classList.add('top-3', `rank-${index + 1}`);
-            }
-            
-            // 如果是當前玩家，添加特殊樣式
-            if (score.isCurrentPlayer) {
-                scoreElement.classList.add('current-player');
-            }
+            if (index < 3) scoreElement.classList.add('top-3', `rank-${index + 1}`);
+            if (score.isCurrentPlayer) scoreElement.classList.add('current-player');
             
             scoreElement.innerHTML = `
                 <span class="rank">${index + 1}</span>
@@ -383,8 +372,8 @@ function showLeaderboard(fromResultPage = false) {
             leaderboardList.appendChild(scoreElement);
         });
 
-        // 如果當前玩家不在前10名但存在排名，顯示其排名
-        if (currentPlayerRank > 10 && currentPlayerRank <= scores.length) {
+        // 如果是從結果頁面來的，且當前玩家不在前10名，顯示其排名
+        if (fromResultPage && currentPlayerRank > 10) {
             const separatorElement = document.createElement('div');
             separatorElement.className = 'leaderboard-separator';
             separatorElement.textContent = '...';
@@ -406,23 +395,38 @@ function showLeaderboard(fromResultPage = false) {
 
 // 修改返回按鈕的處理函數
 function backFromLeaderboard() {
-    console.log('返回按鈕被點擊'); // 調試用
+    console.log('返回按鈕被點擊');
     
     // 清理遊戲狀態
     cleanupGame();
     
     // 隱藏所有容器
-    document.getElementById('leaderboardContainer').style.display = 'none';
-    document.getElementById('resultContainer').style.display = 'none';
-    document.querySelector('.game-container').style.display = 'none';
+    const containers = [
+        document.getElementById('leaderboardContainer'),
+        document.getElementById('resultContainer'),
+        document.querySelector('.game-container')
+    ];
+    
+    containers.forEach(container => {
+        if (container) {
+            container.style.display = 'none';
+        }
+    });
     
     // 顯示輸入界面
-    document.querySelector('.input-container').style.display = 'block';
+    const inputContainer = document.querySelector('.input-container');
+    if (inputContainer) {
+        inputContainer.style.display = 'block';
+        console.log('輸入界面已顯示');
+    } else {
+        console.error('未找到輸入界面容器');
+    }
     
     // 清空輸入框
     const nameInput = document.querySelector('input[type="text"]');
     if (nameInput) {
         nameInput.value = '';
+        console.log('輸入框已清空');
     }
 }
 
@@ -658,10 +662,10 @@ document.addEventListener('DOMContentLoaded', () => {
     // 返回按鈕
     const backButton = document.querySelector('.back-btn');
     if (backButton) {
-        backButton.onclick = backFromLeaderboard;
-        console.log('返回按鈕事件已綁定'); // 調試用
+        backButton.addEventListener('click', backFromLeaderboard);
+        console.log('返回按鈕事件已綁定');
     } else {
-        console.log('未找到返回按鈕'); // 調試用
+        console.error('未找到返回按鈕');
     }
     
     // 再次挑戰按鈕
