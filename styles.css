@@ -61,9 +61,19 @@ button:hover {
 
 .scanner-container {
     width: 100%;
-    display: flex;
-    justify-content: center;
-    margin: 20px 0;
+    max-width: 500px;
+    margin: 20px auto;
+    text-align: center;
+}
+
+#reader {
+    width: 100%;
+    margin: 0 auto;
+}
+
+#reader video {
+    width: 100%;
+    border-radius: 10px;
 }
 
 .scanner-frame {
@@ -338,4 +348,44 @@ button:hover {
 
 .back-btn:hover, .restart-btn:hover, .leaderboard-btn:hover {
     background-color: #5a6268;
+}
+
+.question-container {
+    text-align: center;
+    margin: 20px 0;
+    padding: 20px;
+    background-color: #f8f9fa;
+    border-radius: 10px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}
+
+.question-container h3 {
+    color: #333;
+    margin-bottom: 20px;
+    font-size: 1.2em;
+}
+
+.options-container {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    max-width: 500px;
+    margin: 0 auto;
+}
+
+.option-btn {
+    padding: 15px;
+    font-size: 16px;
+    text-align: left;
+    background-color: white;
+    border: 2px solid #4CAF50;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.option-btn:hover {
+    background-color: #4CAF50;
+    color: white;
+    transform: translateY(-2px);
 }

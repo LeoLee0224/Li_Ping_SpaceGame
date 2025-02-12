@@ -11,6 +11,7 @@ let playerName = '';
 let gameStarted = false; // 新增遊戲狀態標記
 let leaderboard = JSON.parse(localStorage.getItem('spaceQuizLeaderboard')) || [];
 let gameSession = null;
+let html5QrcodeScanner = null;
 
 async function startGame() {
     const nameInput = document.querySelector('input[type="text"]');
@@ -37,31 +38,25 @@ async function startGame() {
             // 創建新會話
             const newSessionRef = await database.ref('gameSessions').push({
                 player1: playerName,
-                status: 'waiting'
+                status: 'ready'  // 改為 'ready'，不需要等待第二位玩家
             });
             currentSessionId = newSessionRef.key;
         }
 
-        // 監聽會話狀態
-        database.ref(`gameSessions/${currentSessionId}`).on('value', (snapshot) => {
-            const session = snapshot.val();
-            if (session && session.status === 'ready' && !gameStarted) {
-                gameStarted = true; // 標記遊戲已開始
-                document.getElementById('waitingMessage').style.display = 'none';
-                document.querySelector('.input-container').style.display = 'none';
-                document.querySelector('.game-container').style.display = 'block';
-                
-                // 只在第一次顯示玩家姓名
-                if (!document.querySelector('.player-info').textContent) {
-                    document.querySelector('.player-info').textContent = `參加者：${playerName}`;
-                }
-                
-                if (!timer) { // 只在計時器未啟動時啟動
-                    startTimer();
-                }
-                updateScore(); // 初始化分數顯示
-            }
-        });
+        // 直接開始遊戲
+        document.getElementById('waitingMessage').style.display = 'none';
+        document.querySelector('.input-container').style.display = 'none';
+        document.querySelector('.game-container').style.display = 'block';
+        
+        if (!document.querySelector('.player-info').textContent) {
+            document.querySelector('.player-info').textContent = `參加者：${playerName}`;
+        }
+        
+        startTimer();
+        updateScore();
+        
+        // 在遊戲開始時初始化掃描器
+        initializeScanner();
     } catch (error) {
         console.error('Error:', error);
         alert('發生錯誤：' + error.message);
@@ -99,6 +94,15 @@ function endGame() {
             document.getElementById('resultContainer').style.display = 'block';
             document.getElementById('finalScore').textContent = currentScore;
             checkGameCompletion();
+        });
+    }
+    
+    // 在遊戲結束時停止掃描
+    if (html5QrcodeScanner) {
+        html5QrcodeScanner.stop().then(() => {
+            console.log("掃描器已停止");
+        }).catch((err) => {
+            console.error("停止掃描器時出錯:", err);
         });
     }
 }
@@ -442,4 +446,84 @@ document.addEventListener('DOMContentLoaded', () => {
     if (restartButton) {
         restartButton.onclick = restartGame;
     }
-}); 
+});
+
+// 處理QR Code掃描結果
+function handleQRCode(qrContent) {
+    if (quizQuestions[qrContent]) {
+        // 暫停掃描
+        if (html5QrcodeScanner) {
+            html5QrcodeScanner.pause();
+        }
+        
+        showQuestion(qrContent);
+    }
+}
+
+// 顯示題目
+function showQuestion(qrContent) {
+    const question = quizQuestions[qrContent];
+    document.querySelector('.scanner-container').style.display = 'none';
+    
+    const questionContainer = document.querySelector('.question-container');
+    questionContainer.style.display = 'block';
+    
+    document.getElementById('questionText').textContent = question.question;
+    
+    const optionButtons = document.querySelectorAll('.option-btn');
+    optionButtons.forEach((btn, index) => {
+        const option = ['A', 'B', 'C'][index];
+        btn.textContent = `${option}: ${question.options[option]}`;
+        btn.onclick = () => handleAnswer(qrContent, option);
+    });
+}
+
+// 處理答案
+function handleAnswer(qrContent, selectedOption) {
+    const question = quizQuestions[qrContent];
+    
+    if (selectedOption === question.correctAnswer) {
+        currentScore += 10;
+        playScoreAnimation(true);
+    } else {
+        currentScore = Math.max(0, currentScore - 5);
+        playScoreAnimation(false);
+    }
+    
+    updateScore();
+    
+    // 返回掃描界面並恢復掃描
+    document.querySelector('.question-container').style.display = 'none';
+    document.querySelector('.scanner-container').style.display = 'block';
+    
+    if (html5QrcodeScanner) {
+        html5QrcodeScanner.resume();
+    }
+}
+
+function initializeScanner() {
+    const html5QrCode = new Html5Qrcode("reader");
+    const config = {
+        fps: 10,
+        qrbox: { width: 250, height: 250 },
+        aspectRatio: 1.0
+    };
+
+    html5QrCode.start(
+        { facingMode: "environment" },
+        config,
+        (decodedText) => {
+            // 成功掃描到 QR Code
+            console.log("掃描到QR Code:", decodedText);
+            handleQRCode(decodedText);
+        },
+        (error) => {
+            // 掃描錯誤時不需要處理
+        }
+    ).catch((err) => {
+        console.error("啟動掃描器失敗:", err);
+    });
+
+    // 保存掃描器實例以便後續使用
+    html5QrcodeScanner = html5QrCode;
+} 
