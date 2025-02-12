@@ -45,15 +45,13 @@ console.error = function() {
 const app = firebase.initializeApp(firebaseConfig);
 const database = firebase.database();
 
-// 初始化變量
+// 確保這些變量在文件最開始定義
 let currentScore = 0;
 let timer = null;
-let timeLeft = 30;
+let timeLeft = 60;
 let currentSessionId = null;
 let playerName = '';
 let gameStarted = false;
-let leaderboard = JSON.parse(localStorage.getItem('spaceQuizLeaderboard')) || [];
-let gameSession = null;
 let html5QrcodeScanner = null;
 
 // 尋找可用的會話
@@ -72,6 +70,100 @@ async function findAvailableSession() {
     return null;
 }
 
+// 統一的返回首頁函數
+function backToHome(buttonType) {
+    showDebug(`${buttonType} 按鈕被點擊`);
+    
+    try {
+        // 1. 先隱藏所有容器
+        const containers = [
+            'leaderboardContainer',
+            'resultContainer',
+            'game-container'
+        ];
+        
+        containers.forEach(id => {
+            const container = document.getElementById(id);
+            if (container) {
+                container.style.display = 'none';
+                showDebug(`隱藏 ${id}`);
+            }
+        });
+        
+        // 2. 清理遊戲狀態
+        if (currentSessionId) {
+            database.ref(`gameSessions/${currentSessionId}`).off();
+            showDebug('清理 Firebase 監聽器');
+        }
+        
+        if (html5QrcodeScanner) {
+            html5QrcodeScanner.stop().catch(err => {
+                showDebug('停止掃描器錯誤: ' + err.message, true);
+            });
+            html5QrcodeScanner = null;
+            showDebug('停止掃描器');
+        }
+        
+        if (timer) {
+            clearInterval(timer);
+            timer = null;
+            showDebug('清理計時器');
+        }
+        
+        // 3. 重置所有遊戲變量
+        currentScore = 0;
+        timeLeft = 60;
+        gameStarted = false;
+        currentSessionId = null;
+        playerName = '';
+        
+        // 4. 顯示輸入界面
+        const inputContainer = document.querySelector('.input-container');
+        if (inputContainer) {
+            inputContainer.style.display = 'block';
+            showDebug('顯示輸入界面');
+            
+            // 5. 清空輸入框
+            const nameInput = document.querySelector('input[type="text"]');
+            if (nameInput) {
+                nameInput.value = '';
+                showDebug('清空輸入框');
+            }
+        }
+        
+        showDebug(`${buttonType} 處理完成`);
+        
+    } catch (error) {
+        showDebug(`${buttonType} 處理錯誤: ${error.message}`, true);
+    }
+}
+
+// 在 DOMContentLoaded 中綁定按鈕事件
+document.addEventListener('DOMContentLoaded', () => {
+    showDebug('頁面加載完成');
+    
+    try {
+        // 綁定返回按鈕
+        const backBtn = document.querySelector('.back-btn');
+        if (backBtn) {
+            backBtn.onclick = () => backToHome('返回');
+            showDebug('返回按鈕已綁定');
+        }
+        
+        // 綁定再次挑戰按鈕
+        const restartBtn = document.querySelector('.restart-btn');
+        if (restartBtn) {
+            restartBtn.onclick = () => backToHome('再次挑戰');
+            showDebug('再次挑戰按鈕已綁定');
+        }
+        
+        showDebug('所有按鈕事件綁定完成');
+    } catch (error) {
+        showDebug('按鈕綁定錯誤: ' + error.message, true);
+    }
+});
+
+// 修改 startGame 函數以修復等待問題
 async function startGame() {
     const nameInput = document.querySelector('input[type="text"]');
     playerName = nameInput.value.trim();
@@ -81,13 +173,11 @@ async function startGame() {
         return;
     }
 
-    // 隱藏輸入界面，顯示等待訊息
-    document.querySelector('.input-container').style.display = 'none';
     document.getElementById('waitingMessage').style.display = 'block';
-    document.querySelector('.game-container').style.display = 'none';
+    document.querySelector('.input-container').style.display = 'none';
     
     try {
-        // 清除之前的監聽器
+        // 清理舊的會話
         if (currentSessionId) {
             database.ref(`gameSessions/${currentSessionId}`).off();
         }
@@ -95,16 +185,14 @@ async function startGame() {
         const availableSession = await findAvailableSession();
         
         if (availableSession) {
-            console.log('加入現有會話');
+            showDebug('加入現有會話');
             currentSessionId = availableSession;
-            // 更新會話狀態
             await database.ref(`gameSessions/${currentSessionId}`).update({
                 player2: playerName,
                 status: 'ready'
             });
         } else {
-            console.log('創建新會話');
-            // 創建新會話並等待
+            showDebug('創建新會話');
             const newSessionRef = await database.ref('gameSessions').push({
                 player1: playerName,
                 status: 'waiting',
@@ -113,30 +201,30 @@ async function startGame() {
             currentSessionId = newSessionRef.key;
         }
 
-        // 監聽會話狀態變化
+        // 監聽會話狀態
         database.ref(`gameSessions/${currentSessionId}`).on('value', (snapshot) => {
             const session = snapshot.val();
-            console.log('會話狀態更新:', session);
-
-            if (!session) {
-                console.log('會話不存在');
-                return;
-            }
-
-            if (session.status === 'waiting') {
-                console.log('等待玩家加入...');
-                document.getElementById('waitingMessage').style.display = 'block';
-                document.querySelector('.game-container').style.display = 'none';
-            } 
-            else if (session.status === 'ready' && !gameStarted) {
-                console.log('開始遊戲');
-                gameStarted = true;
-                initializeGame(session);
+            showDebug('會話狀態更新: ' + JSON.stringify(session));
+            
+            if (session && session.status === 'ready') {
+                document.getElementById('waitingMessage').style.display = 'none';
+                document.querySelector('.game-container').style.display = 'block';
+                
+                if (!document.querySelector('.player-info').textContent) {
+                    document.querySelector('.player-info').textContent = `參加者：${playerName}`;
+                }
+                
+                if (!gameStarted) {
+                    gameStarted = true;
+                    startTimer();
+                    updateScore();
+                    initializeScanner();
+                }
             }
         });
 
     } catch (error) {
-        console.error('Error:', error);
+        showDebug('開始遊戲錯誤: ' + error.message, true);
         alert('發生錯誤：' + error.message);
     }
 }
@@ -436,134 +524,6 @@ function showLeaderboard(fromResultPage = false) {
     });
 }
 
-// 保留 restartGame 函數
-function restartGame() {
-    showDebug('執行 restartGame');
-    backToHome('再次挑戰');
-}
-
-// 保留 cleanupGame 函數
-function cleanupGame() {
-    showDebug('執行 cleanupGame');
-    try {
-        // 清理 Firebase 監聽器
-        if (currentSessionId) {
-            database.ref(`gameSessions/${currentSessionId}`).off();
-        }
-        
-        // 停止掃描器
-        if (html5QrcodeScanner) {
-            html5QrcodeScanner.stop().catch(error => {
-                showDebug('停止掃描器時出錯: ' + error.message, true);
-            });
-            html5QrcodeScanner = null;
-        }
-        
-        // 停止計時器
-        if (timer) {
-            clearInterval(timer);
-            timer = null;
-        }
-        
-        // 重置遊戲狀態
-        currentScore = 0;
-        timeLeft = 60;
-        gameStarted = false;
-        currentSessionId = null;
-        playerName = '';
-        
-        showDebug('cleanupGame 完成');
-    } catch (error) {
-        showDebug('cleanupGame 錯誤: ' + error.message, true);
-    }
-}
-
-// 統一的返回首頁函數
-function backToHome(buttonType) {
-    showDebug(`${buttonType} 按鈕被點擊`);
-    
-    try {
-        // 1. 先隱藏所有容器
-        const containers = [
-            'leaderboardContainer',
-            'resultContainer',
-            'game-container'
-        ];
-        
-        containers.forEach(id => {
-            const container = document.getElementById(id);
-            if (container) {
-                container.style.display = 'none';
-                showDebug(`隱藏 ${id}`);
-            }
-        });
-        
-        // 2. 使用 cleanupGame 清理遊戲狀態
-        cleanupGame();
-        
-        // 3. 顯示輸入界面
-        const inputContainer = document.querySelector('.input-container');
-        if (inputContainer) {
-            inputContainer.style.display = 'block';
-            showDebug('顯示輸入界面');
-            
-            // 4. 清空輸入框
-            const nameInput = document.querySelector('input[type="text"]');
-            if (nameInput) {
-                nameInput.value = '';
-                showDebug('清空輸入框');
-            }
-        }
-        
-        showDebug(`${buttonType} 處理完成`);
-        
-    } catch (error) {
-        showDebug(`${buttonType} 處理錯誤: ${error.message}`, true);
-    }
-}
-
-// 在 DOMContentLoaded 中綁定按鈕事件
-document.addEventListener('DOMContentLoaded', () => {
-    showDebug('頁面加載完成');
-    
-    try {
-        // 綁定返回按鈕
-        const backBtn = document.querySelector('.back-btn');
-        if (backBtn) {
-            backBtn.onclick = () => backToHome('返回');
-            showDebug('返回按鈕已綁定');
-        }
-        
-        // 綁定再次挑戰按鈕
-        const restartBtn = document.querySelector('.restart-btn');
-        if (restartBtn) {
-            restartBtn.onclick = restartGame;
-            showDebug('再次挑戰按鈕已綁定');
-        }
-        
-        showDebug('所有按鈕事件綁定完成');
-    } catch (error) {
-        showDebug('按鈕綁定錯誤: ' + error.message, true);
-    }
-});
-
-// 確保在頁面卸載時清理
-window.addEventListener('beforeunload', () => {
-    try {
-        if (currentSessionId) {
-            database.ref(`gameSessions/${currentSessionId}`).off();
-        }
-        if (html5QrcodeScanner) {
-            html5QrcodeScanner.stop();
-        }
-        if (timer) {
-            clearInterval(timer);
-        }
-    } catch (error) {
-        showDebug('頁面卸載清理錯誤: ' + error.message, true);
-    }
-});
-
 // 保存排行榜到本地存儲
 function saveLeaderboard() {
     localStorage.setItem('spaceQuizLeaderboard', JSON.stringify(leaderboard));
@@ -745,7 +705,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // 再次挑戰按鈕
     const restartButton = document.querySelector('.restart-btn');
     if (restartButton) {
-        restartButton.onclick = restartGame;
+        restartButton.onclick = () => backToHome('再次挑戰');
     }
     
     // 排行榜按鈕
