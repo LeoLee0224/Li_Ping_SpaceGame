@@ -139,7 +139,7 @@ function backToHome(buttonType) {
 }
 
 // 確保這個函數在文件開頭就定義
-function startGame() {
+async function startGame() {
     showDebug('開始遊戲函數被調用');
     const nameInput = document.querySelector('input[type="text"]');
     playerName = nameInput.value.trim();
@@ -153,11 +153,6 @@ function startGame() {
     document.getElementById('waitingMessage').style.display = 'block';
     document.querySelector('.input-container').style.display = 'none';
     
-    initializeGame();
-}
-
-// 初始化遊戲
-async function initializeGame() {
     try {
         // 清理舊的會話
         if (currentSessionId) {
@@ -730,4 +725,14 @@ document.addEventListener('DOMContentLoaded', () => {
     leaderboardButtons.forEach(button => {
         button.onclick = () => showLeaderboard(false);
     });
-}); 
+});
+
+// 其他輔助函數
+function cleanupGame() {
+    showDebug('執行清理遊戲狀態');
+    try {
+        // ... cleanupGame 函數的內容保持不變 ...
+    } catch (error) {
+        showDebug('清理遊戲狀態錯誤: ' + error.message, true);
+    }
+} 

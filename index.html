@@ -16,9 +16,8 @@
         <h1>updated: 21:03</h1> 
         <h1>歡迎來到太空安全知識競賽</h1>        
         <div class="input-container">
-            <input type="text" placeholder="請輸入您的名字">
-            <button>確認</button>
-            <button class="leaderboard-btn">查看排行榜</button>
+            <input type="text" placeholder="請輸入姓名">
+            <button onclick="startGame()" type="button">確定</button>
         </div>
         <div class="game-container" style="display: none;">
             <div class="player-info"></div>
@@ -36,24 +35,23 @@
                 <div id="reader"></div>
             </div>
         </div>
-        <div id="waitingMessage" class="waiting-message" style="display: none;">
-            <div class="spinner"></div>
-            <p>等待對手加入...</p>
+        <div id="waitingMessage" style="display: none;">
+            等待對手加入...
         </div>
-        <div id="resultContainer" class="result-container" style="display: none;">
+        <div id="resultContainer" style="display: none;">
             <h2>探測完成！</h2>
             <p>你的分數：<span id="finalScore">0</span></p>
             <p>對手分數：<span id="opponentScore">等待對手完成...</span></p>
             <div id="resultMessage" class="result-message"></div>
             <div class="button-container">
-                <button class="leaderboard-btn">查看排行榜</button>
-                <button class="restart-btn">再次挑戰</button>
+                <button class="restart-btn" onclick="backToHome('再次挑戰')">再次挑戰</button>
+                <button class="leaderboard-btn" onclick="showLeaderboard(true)">查看排行榜</button>
             </div>
         </div>
-        <div id="leaderboardContainer" class="leaderboard-container" style="display: none;">
+        <div id="leaderboardContainer" style="display: none;">
             <h2>排行榜</h2>
             <div id="leaderboardList"></div>
-            <button class="back-btn">返回</button>
+            <button class="back-btn" onclick="backToHome('返回')">返回</button>
         </div>
     </div>
 
