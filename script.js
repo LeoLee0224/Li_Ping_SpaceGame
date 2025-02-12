@@ -436,6 +436,42 @@ function showLeaderboard(fromResultPage = false) {
     });
 }
 
+// 保留原有的 cleanupGame 函數
+function cleanupGame() {
+    showDebug('執行 cleanupGame');
+    try {
+        // 清理 Firebase 監聽器
+        if (currentSessionId) {
+            database.ref(`gameSessions/${currentSessionId}`).off();
+        }
+        
+        // 停止掃描器
+        if (html5QrcodeScanner) {
+            html5QrcodeScanner.stop().catch(error => {
+                showDebug('停止掃描器時出錯: ' + error.message, true);
+            });
+            html5QrcodeScanner = null;
+        }
+        
+        // 停止計時器
+        if (timer) {
+            clearInterval(timer);
+            timer = null;
+        }
+        
+        // 重置遊戲狀態
+        currentScore = 0;
+        timeLeft = 60;
+        gameStarted = false;
+        currentSessionId = null;
+        playerName = '';
+        
+        showDebug('cleanupGame 完成');
+    } catch (error) {
+        showDebug('cleanupGame 錯誤: ' + error.message, true);
+    }
+}
+
 // 統一的返回首頁函數
 function backToHome(buttonType) {
     showDebug(`${buttonType} 按鈕被點擊`);
@@ -456,42 +492,16 @@ function backToHome(buttonType) {
             }
         });
         
-        // 2. 清理遊戲狀態
-        if (currentSessionId) {
-            database.ref(`gameSessions/${currentSessionId}`).off();
-            showDebug('清理 Firebase 監聽器');
-        }
+        // 2. 使用 cleanupGame 清理遊戲狀態
+        cleanupGame();
         
-        if (html5QrcodeScanner) {
-            html5QrcodeScanner.stop().catch(err => {
-                showDebug('停止掃描器錯誤: ' + err.message, true);
-            });
-            html5QrcodeScanner = null;
-            showDebug('停止掃描器');
-        }
-        
-        if (timer) {
-            clearInterval(timer);
-            timer = null;
-            showDebug('清理計時器');
-        }
-        
-        // 3. 重置所有遊戲變量
-        currentScore = 0;
-        timeLeft = 60;
-        gameStarted = false;
-        currentSessionId = null;
-        playerName = '';
-        
-        showDebug('重置遊戲變量');
-        
-        // 4. 顯示輸入界面
+        // 3. 顯示輸入界面
         const inputContainer = document.querySelector('.input-container');
         if (inputContainer) {
             inputContainer.style.display = 'block';
             showDebug('顯示輸入界面');
             
-            // 5. 清空輸入框
+            // 4. 清空輸入框
             const nameInput = document.querySelector('input[type="text"]');
             if (nameInput) {
                 nameInput.value = '';
