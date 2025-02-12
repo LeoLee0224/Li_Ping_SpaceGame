@@ -436,80 +436,79 @@ function showLeaderboard(fromResultPage = false) {
     });
 }
 
-// 修改返回按鈕的處理函數
-function backFromLeaderboard() {
-    console.log('返回按鈕被點擊');
+// 修改返回按鈕的綁定方式
+document.addEventListener('DOMContentLoaded', () => {
+    console.log('頁面加載完成');
     
-    // 清理遊戲狀態
-    cleanupGame();
-    
-    // 隱藏所有容器
-    const containers = [
-        document.getElementById('leaderboardContainer'),
-        document.getElementById('resultContainer'),
-        document.querySelector('.game-container')
-    ];
-    
-    containers.forEach(container => {
-        if (container) {
-            container.style.display = 'none';
-        }
-    });
-    
-    // 顯示輸入界面
-    const inputContainer = document.querySelector('.input-container');
-    if (inputContainer) {
-        inputContainer.style.display = 'block';
-        console.log('輸入界面已顯示');
+    // 使用 onclick 而不是 addEventListener
+    const backButton = document.querySelector('.back-btn');
+    if (backButton) {
+        backButton.onclick = function() {
+            console.log('返回按鈕點擊 - 開始處理');
+            
+            try {
+                // 隱藏所有容器
+                document.getElementById('leaderboardContainer').style.display = 'none';
+                document.getElementById('resultContainer').style.display = 'none';
+                document.querySelector('.game-container').style.display = 'none';
+                
+                // 顯示輸入界面
+                document.querySelector('.input-container').style.display = 'block';
+                
+                // 清空輸入框
+                const nameInput = document.querySelector('input[type="text"]');
+                if (nameInput) {
+                    nameInput.value = '';
+                }
+                
+                // 清理遊戲狀態
+                cleanupGame();
+                
+                console.log('返回按鈕處理完成');
+            } catch (error) {
+                console.error('返回按鈕處理錯誤：', error);
+            }
+        };
+        console.log('返回按鈕事件已綁定');
     } else {
-        console.error('未找到輸入界面容器');
+        console.error('未找到返回按鈕元素');
     }
-    
-    // 清空輸入框
-    const nameInput = document.querySelector('input[type="text"]');
-    if (nameInput) {
-        nameInput.value = '';
-        console.log('輸入框已清空');
-    }
-}
+});
 
+// 確保 cleanupGame 函數存在
 function cleanupGame() {
-    // 清理 Firebase 監聽器
-    if (currentSessionId) {
-        database.ref(`gameSessions/${currentSessionId}`).off();
-    }
-    
-    // 停止掃描器
-    if (html5QrcodeScanner) {
-        html5QrcodeScanner.stop().catch(error => {
-            console.error('停止掃描器時出錯:', error);
-        });
-        html5QrcodeScanner = null;
-    }
-    
-    // 停止計時器
-    if (timer) {
-        clearInterval(timer);
-        timer = null;
-    }
-    
-    // 重置遊戲狀態
-    currentScore = 0;
-    timeLeft = 60;
-    gameStarted = false;
-    currentSessionId = null;
-    playerName = '';
-    
-    // 重置分數顯示
-    const scoreElement = document.querySelector('.score');
-    if (scoreElement) {
-        scoreElement.textContent = '目前分數：0';
-    }
-    
-    // 重置計時器顯示
-    const timerElement = document.querySelector('.timer span');
-    if (timerElement) {
-        timerElement.textContent = '60';
+    try {
+        console.log('開始清理遊戲狀態');
+        
+        // 清理 Firebase 監聽器
+        if (currentSessionId) {
+            database.ref(`gameSessions/${currentSessionId}`).off();
+        }
+        
+        // 停止掃描器
+        if (html5QrcodeScanner) {
+            html5QrcodeScanner.stop().catch(error => {
+                console.error('停止掃描器時出錯:', error);
+            });
+            html5QrcodeScanner = null;
+        }
+        
+        // 停止計時器
+        if (timer) {
+            clearInterval(timer);
+            timer = null;
+        }
+        
+        // 重置遊戲狀態
+        currentScore = 0;
+        timeLeft = 60;
+        gameStarted = false;
+        currentSessionId = null;
+        playerName = '';
+        
+        console.log('遊戲狀態清理完成');
+    } catch (error) {
+        console.error('清理遊戲狀態時出錯：', error);
     }
 }
 
@@ -700,15 +699,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const resultLeaderboardBtn = document.querySelector('.result-container .leaderboard-btn');
     if (resultLeaderboardBtn) {
         resultLeaderboardBtn.onclick = () => showLeaderboard(true);
-    }
-    
-    // 返回按鈕
-    const backButton = document.querySelector('.back-btn');
-    if (backButton) {
-        backButton.addEventListener('click', backFromLeaderboard);
-        console.log('返回按鈕事件已綁定');
-    } else {
-        console.error('未找到返回按鈕');
     }
     
     // 再次挑戰按鈕
