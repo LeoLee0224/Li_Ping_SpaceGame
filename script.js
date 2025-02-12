@@ -138,33 +138,9 @@ function backToHome(buttonType) {
     }
 }
 
-// 在 DOMContentLoaded 中綁定按鈕事件
-document.addEventListener('DOMContentLoaded', () => {
-    showDebug('頁面加載完成');
-    
-    try {
-        // 綁定返回按鈕
-        const backBtn = document.querySelector('.back-btn');
-        if (backBtn) {
-            backBtn.onclick = () => backToHome('返回');
-            showDebug('返回按鈕已綁定');
-        }
-        
-        // 綁定再次挑戰按鈕
-        const restartBtn = document.querySelector('.restart-btn');
-        if (restartBtn) {
-            restartBtn.onclick = () => backToHome('再次挑戰');
-            showDebug('再次挑戰按鈕已綁定');
-        }
-        
-        showDebug('所有按鈕事件綁定完成');
-    } catch (error) {
-        showDebug('按鈕綁定錯誤: ' + error.message, true);
-    }
-});
-
-// 修改 startGame 函數以修復等待問題
-async function startGame() {
+// 確保這個函數在文件開頭就定義
+function startGame() {
+    showDebug('開始遊戲函數被調用');
     const nameInput = document.querySelector('input[type="text"]');
     playerName = nameInput.value.trim();
     
@@ -173,9 +149,15 @@ async function startGame() {
         return;
     }
 
+    showDebug('玩家名稱: ' + playerName);
     document.getElementById('waitingMessage').style.display = 'block';
     document.querySelector('.input-container').style.display = 'none';
     
+    initializeGame();
+}
+
+// 初始化遊戲
+async function initializeGame() {
     try {
         // 清理舊的會話
         if (currentSessionId) {
@@ -183,6 +165,7 @@ async function startGame() {
         }
 
         const availableSession = await findAvailableSession();
+        showDebug('尋找可用會話結果: ' + (availableSession ? '找到' : '未找到'));
         
         if (availableSession) {
             showDebug('加入現有會話');
@@ -224,10 +207,44 @@ async function startGame() {
         });
 
     } catch (error) {
-        showDebug('開始遊戲錯誤: ' + error.message, true);
+        showDebug('初始化遊戲錯誤: ' + error.message, true);
         alert('發生錯誤：' + error.message);
     }
 }
+
+// 在 DOMContentLoaded 中綁定所有按鈕事件
+document.addEventListener('DOMContentLoaded', () => {
+    showDebug('頁面加載完成，開始綁定按鈕');
+    
+    try {
+        // 綁定開始按鈕
+        const startButton = document.querySelector('button[type="button"]');
+        if (startButton) {
+            startButton.onclick = startGame;
+            showDebug('開始按鈕已綁定');
+        } else {
+            showDebug('未找到開始按鈕', true);
+        }
+        
+        // 綁定返回按鈕
+        const backBtn = document.querySelector('.back-btn');
+        if (backBtn) {
+            backBtn.onclick = () => backToHome('返回');
+            showDebug('返回按鈕已綁定');
+        }
+        
+        // 綁定再次挑戰按鈕
+        const restartBtn = document.querySelector('.restart-btn');
+        if (restartBtn) {
+            restartBtn.onclick = () => backToHome('再次挑戰');
+            showDebug('再次挑戰按鈕已綁定');
+        }
+        
+        showDebug('所有按鈕事件綁定完成');
+    } catch (error) {
+        showDebug('按鈕綁定錯誤: ' + error.message, true);
+    }
+});
 
 function initializeGame(session) {
     console.log('初始化遊戲...');
