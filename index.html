@@ -13,7 +13,7 @@
 </head>
 <body>
     <div class="page">
-        <h1>updated: 19:44</h1> 
+        <h1>updated: 19:47</h1> 
         <h1>歡迎來到太空安全知識競賽</h1>        
         <div class="input-container">
             <input type="text" placeholder="請輸入您的名字">
@@ -55,6 +55,11 @@
             <div id="leaderboardList"></div>
             <button class="back-btn">返回</button>
         </div>
+    </div>
+
+    <div id="debugArea" style="position: fixed; bottom: 0; left: 0; right: 0; background: rgba(0,0,0,0.8); color: white; padding: 10px; font-size: 12px; max-height: 150px; overflow-y: auto; z-index: 9999; display: none;">
+        <div id="debugContent"></div>
+        <button onclick="clearDebug()" style="position: absolute; right: 10px; top: 10px; padding: 5px;">清除</button>
     </div>
 
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>

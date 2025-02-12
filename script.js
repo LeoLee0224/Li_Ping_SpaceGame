@@ -1,3 +1,46 @@
+// 添加調試功能
+function showDebug(message, isError = false) {
+    const debugArea = document.getElementById('debugArea');
+    const debugContent = document.getElementById('debugContent');
+    debugArea.style.display = 'block';
+    
+    const time = new Date().toLocaleTimeString();
+    const msgDiv = document.createElement('div');
+    msgDiv.style.color = isError ? '#ff4444' : '#ffffff';
+    msgDiv.textContent = `[${time}] ${message}`;
+    
+    debugContent.appendChild(msgDiv);
+    debugContent.scrollTop = debugContent.scrollHeight;
+}
+
+function clearDebug() {
+    const debugContent = document.getElementById('debugContent');
+    debugContent.innerHTML = '';
+    document.getElementById('debugArea').style.display = 'none';
+}
+
+// 捕獲全局錯誤
+window.onerror = function(msg, url, line, col, error) {
+    showDebug(`ERROR: ${msg} (${line}:${col})`, true);
+    return false;
+};
+
+// 重寫 console.log 和 console.error
+const originalLog = console.log;
+const originalError = console.error;
+
+console.log = function() {
+    const args = Array.from(arguments);
+    showDebug(args.join(' '));
+    originalLog.apply(console, arguments);
+};
+
+console.error = function() {
+    const args = Array.from(arguments);
+    showDebug(args.join(' '), true);
+    originalError.apply(console, arguments);
+};
+
 // 初始化 Firebase
 const app = firebase.initializeApp(firebaseConfig);
 const database = firebase.database();
