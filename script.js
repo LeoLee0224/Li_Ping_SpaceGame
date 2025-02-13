@@ -448,14 +448,28 @@ document.addEventListener('DOMContentLoaded', () => {
 // 初始化掃描器
 function initializeScanner() {
     try {
-        // 創建掃描器實例
+        // 創建掃描器實例，使用更多的配置選項
         html5QrcodeScanner = new Html5QrcodeScanner(
             "qr-reader", 
             { 
                 fps: 10,
                 qrbox: 250,
                 aspectRatio: 1.0,
-                showTorchButtonIfSupported: true
+                showTorchButtonIfSupported: true,
+                rememberLastUsedCamera: true, // 記住上次使用的攝像頭
+                defaultInputByImplementation: { // 設置默認使用後置攝像頭
+                    preferredFacingMode: 'environment'
+                },
+                formatsToSupport: [ Html5QrcodeSupportedFormats.QR_CODE ], // 只掃描 QR Code
+                useBarCodeDetectorIfSupported: true, // 使用原生 API 以提高性能
+                showZoomSliderIfSupported: true, // 顯示縮放控制
+                // 自定義 UI
+                config: {
+                    fps: { hidden: true }, // 隱藏 FPS 選擇
+                    qrbox: { hidden: true }, // 隱藏掃描框大小選擇
+                    aspectRatio: { hidden: true }, // 隱藏寬高比選擇
+                    videoConstraints: { hidden: true } // 隱藏攝像頭選擇
+                }
             }
         );
 
