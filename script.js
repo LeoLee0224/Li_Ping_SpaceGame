@@ -467,8 +467,8 @@ function initializeScanner() {
             if (decodedText && decodedText.match(/^Q[1-3]$/)) {
                 const questionId = decodedText; // 直接使用 Q1, Q2, Q3 作為索引
                 
-                // 從 questions.js 獲取對應的題目
-                const question = questions[questionId];
+                // 從 quizQuestions 獲取對應的題目
+                const question = quizQuestions[questionId];
                 if (question) {
                     // 顯示題目
                     showQuestion(question);
@@ -504,9 +504,11 @@ function showQuestion(question) {
     questionText.textContent = question.question;
     
     // 設置選項
-    options.forEach((button, index) => {
-        button.textContent = question.options[index];
-        button.onclick = () => handleAnswer(button.dataset.option, question.answer);
+    Object.entries(question.options).forEach(([key, value], index) => {
+        const button = options[index];
+        button.textContent = `${key}. ${value}`;
+        button.dataset.option = key;
+        button.onclick = () => handleAnswer(key, question.correctAnswer);
     });
     
     questionContainer.style.display = 'block';
