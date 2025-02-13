@@ -461,12 +461,24 @@ function initializeScanner() {
 
         // 處理掃描成功
         const onScanSuccess = (decodedText, decodedResult) => {
-            if (decodedText && decodedText.startsWith('TREASURE_')) {
-                const treasureId = decodedText.replace('TREASURE_', '');
-                currentScore += 10;
-                updateScore();
-                playSuccessSound();
-                showMessage('掃描成功！+10分', 'success');
+            console.log('掃描到的內容：', decodedText); // 用於調試
+            
+            // 檢查是否是 Q1, Q2, Q3 格式
+            if (decodedText && decodedText.match(/^Q[1-3]$/)) {
+                const questionId = decodedText; // 直接使用 Q1, Q2, Q3 作為索引
+                
+                // 從 questions.js 獲取對應的題目
+                const question = questions[questionId];
+                if (question) {
+                    // 顯示題目
+                    showQuestion(question);
+                    // 暫停掃描器
+                    html5QrcodeScanner.pause();
+                } else {
+                    showMessage('無效的題目代碼', 'error');
+                }
+            } else {
+                showMessage('無效的 QR Code', 'error');
             }
         };
 
@@ -478,16 +490,46 @@ function initializeScanner() {
         // 啟動掃描器
         html5QrcodeScanner.render(onScanSuccess, onScanFailure);
         
-        // 保留完成探測按鈕
-        const completeButton = document.createElement('button');
-        completeButton.textContent = '完成探測';
-        completeButton.className = 'complete-btn';
-        completeButton.onclick = endGame;
-        document.querySelector('.game-container').appendChild(completeButton);
-        
-        showDebug('掃描器和完成按鈕已初始化');
     } catch (error) {
         showDebug('初始化掃描器錯誤: ' + error.message, true);
+    }
+}
+
+// 顯示題目
+function showQuestion(question) {
+    const questionContainer = document.querySelector('.question-container');
+    const questionText = document.getElementById('questionText');
+    const options = document.querySelectorAll('.option-btn');
+    
+    questionText.textContent = question.question;
+    
+    // 設置選項
+    options.forEach((button, index) => {
+        button.textContent = question.options[index];
+        button.onclick = () => handleAnswer(button.dataset.option, question.answer);
+    });
+    
+    questionContainer.style.display = 'block';
+}
+
+// 處理答案
+function handleAnswer(selectedOption, correctAnswer) {
+    const questionContainer = document.querySelector('.question-container');
+    
+    if (selectedOption === correctAnswer) {
+        currentScore += 10;
+        updateScore();
+        showMessage('答對了！+10分', 'success');
+    } else {
+        showMessage('答錯了！', 'error');
+    }
+    
+    // 隱藏題目
+    questionContainer.style.display = 'none';
+    
+    // 恢復掃描器
+    if (html5QrcodeScanner) {
+        html5QrcodeScanner.resume();
     }
 }
 
