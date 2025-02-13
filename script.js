@@ -621,4 +621,24 @@ function cleanupScanner() {
         });
         html5QrcodeScanner = null;
     }
-} 
+}
+
+// 更新時間顯示
+function updateCurrentTime() {
+    const now = new Date();
+    const hours = String(now.getHours()).padStart(2, '0');
+    const minutes = String(now.getMinutes()).padStart(2, '0');
+    const timeString = `${hours}:${minutes}`;
+    
+    const timeElement = document.getElementById('currentTime');
+    if (timeElement) {
+        timeElement.textContent = timeString;
+    }
+}
+
+// 頁面加載時立即更新時間
+document.addEventListener('DOMContentLoaded', () => {
+    updateCurrentTime();
+    // 每分鐘更新一次
+    setInterval(updateCurrentTime, 60000);
+}); 
