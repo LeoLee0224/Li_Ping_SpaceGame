@@ -511,42 +511,85 @@ function initializeScanner() {
 
 // 顯示題目
 function showQuestion(question) {
+    console.log('開始顯示題目:', question);
+    
     const questionContainer = document.querySelector('.question-container');
     const questionText = document.getElementById('questionText');
     const options = document.querySelectorAll('.option-btn');
+    const qrReader = document.getElementById('qr-reader');
+    
+    if (!questionContainer || !questionText || !options.length) {
+        console.error('找不到必要的 DOM 元素');
+        return;
+    }
+    
+    // 隱藏掃描器
+    qrReader.style.display = 'none';
     
     questionText.textContent = question.question;
     
+    // 重置所有按鈕的樣式
+    options.forEach(button => {
+        button.className = 'option-btn';
+    });
+    
     // 設置選項
-    Object.entries(question.options).forEach(([key, value], index) => {
-        const button = options[index];
-        button.textContent = `${key}. ${value}`;
-        button.dataset.option = key;
-        button.onclick = () => handleAnswer(key, question.correctAnswer);
+    options.forEach((button, index) => {
+        const optionKey = String.fromCharCode(65 + index); // A, B, C
+        const optionText = question.options[optionKey];
+        button.textContent = `${optionKey}. ${optionText}`;
+        button.dataset.option = optionKey;
+        button.onclick = () => handleAnswer(button, optionKey, question.correctAnswer);
     });
     
     questionContainer.style.display = 'block';
 }
 
 // 處理答案
-function handleAnswer(selectedOption, correctAnswer) {
+function handleAnswer(selectedButton, selectedOption, correctAnswer) {
     const questionContainer = document.querySelector('.question-container');
+    const options = document.querySelectorAll('.option-btn');
+    const qrReader = document.getElementById('qr-reader');
     
+    // 禁用所有按鈕，防止重複點擊
+    options.forEach(button => button.disabled = true);
+    
+    // 顯示答案結果
     if (selectedOption === correctAnswer) {
+        selectedButton.classList.add('correct');
         currentScore += 10;
         updateScore();
         showMessage('答對了！+10分', 'success');
     } else {
+        selectedButton.classList.add('wrong');
+        // 顯示正確答案
+        options.forEach(button => {
+            if (button.dataset.option === correctAnswer) {
+                button.classList.add('correct');
+            }
+        });
         showMessage('答錯了！', 'error');
     }
     
-    // 隱藏題目
-    questionContainer.style.display = 'none';
-    
-    // 恢復掃描器
-    if (html5QrcodeScanner) {
-        html5QrcodeScanner.resume();
-    }
+    // 3秒後重置界面
+    setTimeout(() => {
+        // 隱藏題目
+        questionContainer.style.display = 'none';
+        
+        // 重置按鈕樣式和狀態
+        options.forEach(button => {
+            button.className = 'option-btn';
+            button.disabled = false;
+        });
+        
+        // 顯示掃描器
+        qrReader.style.display = 'block';
+        
+        // 恢復掃描器
+        if (html5QrcodeScanner) {
+            html5QrcodeScanner.resume();
+        }
+    }, 3000);
 }
 
 // 顯示訊息

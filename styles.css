@@ -394,3 +394,20 @@ button:hover {
     color: white;
     transform: translateY(-2px);
 }
+
+.option-btn.correct {
+    background-color: #4CAF50;
+    color: white;
+    border-color: #45a049;
+}
+
+.option-btn.wrong {
+    background-color: #f44336;
+    color: white;
+    border-color: #da190b;
+}
+
+.option-btn:disabled {
+    cursor: not-allowed;
+    opacity: 0.8;
+}
