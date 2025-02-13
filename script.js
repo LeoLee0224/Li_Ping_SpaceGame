@@ -5,7 +5,7 @@ const database = firebase.database();
 // 初始化變量
 let currentScore = 0;
 let timer = null;
-let timeLeft = 60;
+let timeLeft = 10;
 let currentSessionId = null;
 let playerName = '';
 let gameStarted = false; // 新增遊戲狀態標記
@@ -137,7 +137,7 @@ function startTimer() {
         clearInterval(timer);
     }
     
-    timeLeft = 60;
+    timeLeft = 10;
     updateTimerDisplay();
     
     timer = setInterval(() => {
@@ -146,7 +146,7 @@ function startTimer() {
         
         if (timeLeft <= 0) {
             clearInterval(timer);
-            endGame();
+            endGame(); // 時間到自動結束遊戲
         }
     }, 1000);
 }
@@ -314,7 +314,7 @@ function backFromLeaderboard() {
 function restartGame() {
     // 重置遊戲狀態
     currentScore = 0;
-    timeLeft = 60;
+    timeLeft = 10;
     gameStarted = false;
     if (timer) {
         clearInterval(timer);
