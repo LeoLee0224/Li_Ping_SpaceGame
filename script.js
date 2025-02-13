@@ -60,6 +60,7 @@ async function startGame() {
                     startTimer();
                 }
                 updateScore(); // 初始化分數顯示
+                initializeScanner(); // 初始化掃描器
             }
         });
     } catch (error) {
@@ -442,4 +443,81 @@ document.addEventListener('DOMContentLoaded', () => {
     if (restartButton) {
         restartButton.onclick = restartGame;
     }
-}); 
+});
+
+// 初始化掃描器
+function initializeScanner() {
+    try {
+        // 創建掃描器實例
+        html5QrcodeScanner = new Html5QrcodeScanner(
+            "qr-reader", 
+            { 
+                fps: 10,
+                qrbox: 250,
+                aspectRatio: 1.0,
+                showTorchButtonIfSupported: true
+            }
+        );
+
+        // 處理掃描成功
+        const onScanSuccess = (decodedText, decodedResult) => {
+            if (decodedText && decodedText.startsWith('TREASURE_')) {
+                const treasureId = decodedText.replace('TREASURE_', '');
+                currentScore += 10;
+                updateScore();
+                playSuccessSound();
+                showMessage('掃描成功！+10分', 'success');
+            }
+        };
+
+        // 處理掃描失敗
+        const onScanFailure = (error) => {
+            // 忽略掃描失敗
+        };
+
+        // 啟動掃描器
+        html5QrcodeScanner.render(onScanSuccess, onScanFailure);
+        
+        // 保留完成探測按鈕
+        const completeButton = document.createElement('button');
+        completeButton.textContent = '完成探測';
+        completeButton.className = 'complete-btn';
+        completeButton.onclick = endGame;
+        document.querySelector('.game-container').appendChild(completeButton);
+        
+        showDebug('掃描器和完成按鈕已初始化');
+    } catch (error) {
+        showDebug('初始化掃描器錯誤: ' + error.message, true);
+    }
+}
+
+// 顯示訊息
+function showMessage(message, type = 'info') {
+    const messageDiv = document.createElement('div');
+    messageDiv.className = `message ${type}`;
+    messageDiv.textContent = message;
+    document.querySelector('.game-container').appendChild(messageDiv);
+    
+    // 2秒後自動移除訊息
+    setTimeout(() => {
+        messageDiv.remove();
+    }, 2000);
+}
+
+// 播放成功音效
+function playSuccessSound() {
+    const audio = new Audio('success.mp3'); // 需要添加音效文件
+    audio.play().catch(() => {
+        // 忽略播放失敗的錯誤
+    });
+}
+
+// 在遊戲結束時清理掃描器
+function cleanupScanner() {
+    if (html5QrcodeScanner) {
+        html5QrcodeScanner.clear().catch(error => {
+            showDebug('清理掃描器錯誤: ' + error.message, true);
+        });
+        html5QrcodeScanner = null;
+    }
+} 
