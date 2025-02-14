@@ -13,54 +13,67 @@ let leaderboard = JSON.parse(localStorage.getItem('spaceQuizLeaderboard')) || []
 let gameSession = null;
 
 async function startGame() {
-    const nameInput = document.querySelector('input[type="text"]');
-    playerName = nameInput.value.trim();
-    
-    if (!playerName) {
-        alert('請輸入姓名');
-        return;
-    }
-
-    document.getElementById('waitingMessage').style.display = 'block';
-    
     try {
-        const availableSession = await findAvailableSession();
+        playerName = document.querySelector('input[type="text"]').value.trim();
+        if (!playerName) {
+            alert('請輸入名字！');
+            return;
+        }
+
+        document.getElementById('waitingMessage').style.display = 'block';
         
-        if (availableSession) {
+        // 尋找可用的會話
+        const availableSessionId = await findAvailableSession();
+        
+        if (availableSessionId) {
             // 加入現有會話
-            currentSessionId = availableSession;
+            currentSessionId = availableSessionId;
             await database.ref(`gameSessions/${currentSessionId}`).update({
                 player2: playerName,
                 status: 'ready'
             });
         } else {
-            // 創建新會話
-            const newSessionRef = await database.ref('gameSessions').push({
+            // 創建新會話的數據
+            const sessionData = {
                 player1: playerName,
-                status: 'waiting'
-            });
+                status: 'waiting',
+                timestamp: Date.now(),
+                scores: {
+                    [playerName]: {
+                        score: 0,
+                        timestamp: Date.now()
+                    }
+                }
+            };
+
+            // 創建新會話
+            const newSessionRef = await database.ref('gameSessions').push(sessionData);
             currentSessionId = newSessionRef.key;
+            
+            // 更新 session id
+            await database.ref(`gameSessions/${currentSessionId}`).update({
+                id: currentSessionId
+            });
         }
 
         // 監聽會話狀態
         database.ref(`gameSessions/${currentSessionId}`).on('value', (snapshot) => {
             const session = snapshot.val();
             if (session && session.status === 'ready' && !gameStarted) {
-                gameStarted = true; // 標記遊戲已開始
+                gameStarted = true;
                 document.getElementById('waitingMessage').style.display = 'none';
                 document.querySelector('.input-container').style.display = 'none';
                 document.querySelector('.game-container').style.display = 'block';
                 
-                // 只在第一次顯示玩家姓名
                 if (!document.querySelector('.player-info').textContent) {
                     document.querySelector('.player-info').textContent = `參加者：${playerName}`;
                 }
                 
-                if (!timer) { // 只在計時器未啟動時啟動
+                if (!timer) {
                     startTimer();
                 }
-                updateScore(); // 初始化分數顯示
-                initializeScanner(); // 初始化掃描器
+                updateScore();
+                initializeScanner();
             }
         });
     } catch (error) {
@@ -131,7 +144,8 @@ function endGame() {
     if (currentSessionId && playerName) {
         // 保存最終分數
         database.ref(`gameSessions/${currentSessionId}/scores/${playerName}`).update({
-            finalScore: currentScore,
+            score: currentScore,  // 更新當前分數
+            finalScore: currentScore,  // 添加最終分數
             completed: true,
             timestamp: Date.now()
         }).then(() => {
@@ -232,8 +246,20 @@ function showPage(pageNumber) {
 
 // 顯示排行榜
 function showLeaderboard(fromResultPage = false) {
+    console.log('showLeaderboard called with fromResultPage:', fromResultPage);
+    console.log('currentSessionId:', currentSessionId);
+    console.log('playerName:', playerName);
+
     const leaderboardList = document.getElementById('leaderboardList');
-    leaderboardList.innerHTML = ''; // 清空現有內容
+    const currentPlayerRankDiv = document.getElementById('currentPlayerRank');
+    
+    if (!currentPlayerRankDiv) {
+        console.error('currentPlayerRankDiv not found');
+        return;
+    }
+
+    leaderboardList.innerHTML = '';
+    currentPlayerRankDiv.innerHTML = '';
     
     // 隱藏其他容器
     document.querySelector('.input-container').style.display = 'none';
@@ -248,20 +274,27 @@ function showLeaderboard(fromResultPage = false) {
         const sessions = snapshot.val();
         const scores = [];
         
-        // 收集所有分數
+        console.log('Retrieved sessions:', sessions);
+        
         if (sessions) {
             Object.values(sessions).forEach(session => {
                 if (session.scores) {
                     Object.entries(session.scores).forEach(([name, data]) => {
-                        if (data.score !== undefined) {
-                            // 修改這裡：檢查是否為當前遊戲場次
+                        if (data.finalScore !== undefined) {
                             const isCurrentGame = fromResultPage && 
                                                name === playerName && 
                                                session.id === currentSessionId;
                             
+                            console.log('Score entry:', {
+                                name,
+                                score: data.finalScore,
+                                sessionId: session.id,
+                                isCurrentGame
+                            });
+
                             scores.push({
                                 name: name,
-                                score: data.score,
+                                score: data.finalScore,
                                 timestamp: data.timestamp || Date.now(),
                                 isCurrentPlayer: isCurrentGame
                             });
@@ -271,7 +304,7 @@ function showLeaderboard(fromResultPage = false) {
             });
         }
         
-        // 排序分數（先按分數降序，同分按時間升序）
+        // 排序分數
         scores.sort((a, b) => {
             if (b.score !== a.score) {
                 return b.score - a.score;
@@ -279,22 +312,42 @@ function showLeaderboard(fromResultPage = false) {
             return a.timestamp - b.timestamp;
         });
 
-        // 找到當前玩家的排名（如果存在）
-        const currentPlayerRank = scores.findIndex(score => score.isCurrentPlayer) + 1;
+        // 找到當前玩家的排名
+        const currentPlayerIndex = scores.findIndex(score => score.isCurrentPlayer);
+        console.log('Current player index:', currentPlayerIndex);
+        
+        if (fromResultPage && currentPlayerIndex !== -1) {
+            const currentPlayerRank = currentPlayerIndex + 1;
+            const currentPlayer = scores[currentPlayerIndex];
+            
+            console.log('Displaying current player rank:', {
+                rank: currentPlayerRank,
+                player: currentPlayer
+            });
+
+            currentPlayerRankDiv.innerHTML = `
+                你的排名：第 ${currentPlayerRank} 名
+                <br>
+                分數：${currentPlayer.score}
+                <br>
+                時間：${formatDateTime(currentPlayer.timestamp)}
+            `;
+            currentPlayerRankDiv.style.display = 'block';
+        } else {
+            console.log('Current player rank not shown because:', {
+                fromResultPage,
+                currentPlayerIndex
+            });
+            currentPlayerRankDiv.style.display = 'none';
+        }
         
         // 顯示前10名
         scores.slice(0, 10).forEach((score, index) => {
             const scoreElement = document.createElement('div');
             scoreElement.className = 'leaderboard-item';
             
-            // 添加前三名的特殊類
             if (index < 3) {
                 scoreElement.classList.add('top-3', `rank-${index + 1}`);
-            }
-            
-            // 添加當前玩家的類
-            if (score.isCurrentPlayer) {
-                scoreElement.classList.add('current-player');
             }
             
             scoreElement.innerHTML = `
@@ -305,20 +358,6 @@ function showLeaderboard(fromResultPage = false) {
             `;
             leaderboardList.appendChild(scoreElement);
         });
-
-        // 如果當前玩家不在前10名，顯示其排名
-        if (fromResultPage && currentPlayerRank > 10) {
-            const currentPlayerElement = document.createElement('div');
-            currentPlayerElement.className = 'leaderboard-item current-player';
-            const playerData = scores[currentPlayerRank - 1];
-            currentPlayerElement.innerHTML = `
-                <span class="rank">${currentPlayerRank}</span>
-                <span class="name">${playerData.name}</span>
-                <span class="score">${playerData.score}</span>
-                <span class="time">${formatDateTime(playerData.timestamp)}</span>
-            `;
-            leaderboardList.appendChild(currentPlayerElement);
-        }
     });
 }
 
@@ -723,5 +762,3 @@ function cleanupGame() {
         console.error('清理遊戲狀態時發生錯誤:', error);
     }
 }
-
-// 在所有題目完成或時間到時結束遊戲

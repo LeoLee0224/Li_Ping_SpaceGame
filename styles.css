@@ -426,3 +426,21 @@ button:hover {
 .leaderboard-item.current-player .time {
     color: white;
 }
+
+/* 當前玩家排名區域樣式 */
+.current-player-rank {
+    background-color: #4CAF50;
+    color: white;
+    padding: 15px;
+    margin: 10px 0;
+    border-radius: 5px;
+    font-weight: bold;
+    text-align: center;
+}
+
+/* 分隔線樣式 */
+#leaderboardContainer hr {
+    margin: 20px 0;
+    border: none;
+    border-top: 2px solid #ddd;
+}
