@@ -165,22 +165,51 @@ function endGame() {
     }
 
     if (currentSessionId && playerName) {
-        // 保存最終分數
+        // 先標記自己完成
         database.ref(`gameSessions/${currentSessionId}/scores/${playerName}`).update({
-            score: currentScore,  // 更新當前分數
-            finalScore: currentScore,  // 添加最終分數
+            score: currentScore,
+            finalScore: currentScore,
             completed: true,
             timestamp: Date.now()
         }).then(() => {
-            document.querySelector('.game-container').style.display = 'none';
-            document.getElementById('resultContainer').style.display = 'block';
-            document.getElementById('finalScore').textContent = currentScore;
-            checkOpponentScore(); // 確保檢查對手分數
+            // 等待雙方都完成
+            waitForBothPlayersToComplete();
         }).catch(error => {
             console.error('保存分數時出錯：', error);
             showDebug('保存分數時出錯：' + error.message);
         });
     }
+}
+
+// 修改 waitForBothPlayersToComplete 函數
+function waitForBothPlayersToComplete() {
+    database.ref(`gameSessions/${currentSessionId}/scores`).on('value', (snapshot) => {
+        const scores = snapshot.val();
+        if (!scores) return;
+
+        const players = Object.entries(scores);
+        const allCompleted = players.length === 2 && 
+                           players.every(([_, data]) => data.completed);
+
+        if (allCompleted) {
+            // 停止監聽
+            database.ref(`gameSessions/${currentSessionId}/scores`).off();
+            
+            // 隱藏等待訊息
+            document.getElementById('waitingMessage').style.display = 'none';
+            
+            // 顯示最終結果
+            document.querySelector('.game-container').style.display = 'none';
+            document.getElementById('resultContainer').style.display = 'block';
+            document.getElementById('finalScore').textContent = currentScore;
+            checkOpponentScore();
+        } else {
+            // 顯示等待訊息
+            document.querySelector('.game-container').style.display = 'none';
+            document.getElementById('waitingMessage').textContent = '等待對手完成...';
+            document.getElementById('waitingMessage').style.display = 'block';
+        }
+    });
 }
 
 // 檢查對手分數並顯示結果
