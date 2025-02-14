@@ -176,7 +176,6 @@ function endGame() {
             waitForBothPlayersToComplete();
         }).catch(error => {
             console.error('保存分數時出錯：', error);
-            showDebug('保存分數時出錯：' + error.message);
         });
     }
 }
@@ -812,9 +811,8 @@ function cleanupGame() {
             nameInput.value = '';
         }
 
-        showDebug('遊戲狀態已完全清理');
+        console.log('遊戲狀態已完全清理');
     } catch (error) {
-        showDebug('清理遊戲狀態時發生錯誤: ' + error.message, true);
         console.error('清理遊戲狀態時發生錯誤:', error);
     }
 }
