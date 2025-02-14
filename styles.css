@@ -526,7 +526,7 @@ button:hover {
     border-top: 2px solid #ddd;
 }
 
-/* 星空背景效果 */
+/* 星空背景 */
 body::before {
     content: '';
     position: fixed;
@@ -534,23 +534,86 @@ body::before {
     left: 0;
     width: 100%;
     height: 100%;
-    background-image: 
-        radial-gradient(2px 2px at 20px 30px, #fff, rgba(0,0,0,0)),
-        radial-gradient(2px 2px at 40px 70px, #fff, rgba(0,0,0,0)),
-        radial-gradient(2px 2px at 50px 160px, #fff, rgba(0,0,0,0)),
-        radial-gradient(2px 2px at 90px 40px, #fff, rgba(0,0,0,0)),
-        radial-gradient(2px 2px at 130px 80px, #fff, rgba(0,0,0,0));
+    background: 
+        radial-gradient(1px 1px at 20px 30px, #fff, rgba(0,0,0,0)),
+        radial-gradient(1px 1px at 40px 70px, #fff, rgba(0,0,0,0)),
+        radial-gradient(1px 1px at 50px 160px, #fff, rgba(0,0,0,0)),
+        radial-gradient(1px 1px at 90px 40px, #fff, rgba(0,0,0,0)),
+        radial-gradient(1px 1px at 130px 80px, #fff, rgba(0,0,0,0));
     background-repeat: repeat;
     background-size: 200px 200px;
-    animation: starFloat 300s linear infinite;
+    animation: starFloat 100s linear infinite;
     opacity: 0.5;
     z-index: -1;
 }
 
-/* 動畫效果 */
-@keyframes starFloat {
-    from { background-position: 0 0; }
-    to { background-position: 100% 100%; }
+/* 添加流星容器 */
+body::after {
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: -1;
+    animation: meteorShower 10s linear infinite;
+    background: 
+        linear-gradient(45deg, transparent 0%, rgba(255, 255, 255, 0.4) 0.1%, transparent 0.2%) 0 0 / 300% 300%,
+        linear-gradient(135deg, transparent 0%, rgba(255, 255, 255, 0.4) 0.1%, transparent 0.2%) 0 0 / 400% 400%,
+        linear-gradient(225deg, transparent 0%, rgba(255, 255, 255, 0.4) 0.1%, transparent 0.2%) 0 0 / 500% 500%;
+}
+
+/* 流星動畫 */
+@keyframes meteorShower {
+    0% {
+        background-position: 
+            50% -100%,
+            20% -100%,
+            70% -100%;
+    }
+    100% {
+        background-position: 
+            150% 200%,
+            120% 200%,
+            170% 200%;
+    }
+}
+
+/* 添加額外的流星效果 */
+.meteor {
+    position: fixed;
+    width: 2px;
+    height: 2px;
+    border-radius: 50%;
+    background: #fff;
+    box-shadow: 
+        0 0 0 1px rgba(255,255,255,0.1),
+        0 0 1px 0px rgba(255,255,255,1),
+        0 0 2px 0px rgba(255,255,255,1),
+        0 0 30px 0px rgba(255,255,255,0.1);
+    animation: meteor 3s linear infinite;
+    opacity: 0;
+}
+
+.meteor::before {
+    content: '';
+    position: absolute;
+    width: 50px;
+    height: 1px;
+    transform: translateY(0.5px);
+    background: linear-gradient(90deg, #fff, transparent);
+}
+
+@keyframes meteor {
+    0% {
+        opacity: 1;
+        transform: scale(1) rotate(-45deg) translate(0, 0);
+    }
+    100% {
+        opacity: 0;
+        transform: scale(1) rotate(-45deg) translate(-100px, 100px);
+    }
 }
 
 @keyframes pulse {
@@ -945,4 +1008,57 @@ h1, h2, #finalScore, #opponentScore {
     100% {
         box-shadow: 0 0 10px rgba(79, 195, 247, 0.5);
     }
+}
+
+/* 查看排行榜按鈕發光效果 */
+.leaderboard-btn {
+    background: linear-gradient(45deg, #FF8C00, #FFA500);
+    color: white;
+    border: none;
+    padding: 12px 24px;
+    border-radius: 30px;
+    cursor: pointer;
+    font-size: 16px;
+    position: relative;
+    overflow: hidden;
+    transition: all 0.3s ease;
+    animation: glowingButton 2s infinite;
+}
+
+@keyframes glowingButton {
+    0% {
+        background: linear-gradient(45deg, #FF8C00, #FFA500);
+        box-shadow: 0 0 10px #FF8C00;
+    }
+    50% {
+        background: linear-gradient(45deg, #FFA500, #FFD700);
+        box-shadow: 0 0 20px #FFA500;
+    }
+    100% {
+        background: linear-gradient(45deg, #FF8C00, #FFA500);
+        box-shadow: 0 0 10px #FF8C00;
+    }
+}
+
+.leaderboard-btn:hover {
+    transform: translateY(-2px);
+    animation: glowingButtonHover 1s infinite;
+}
+
+@keyframes glowingButtonHover {
+    0% {
+        box-shadow: 0 0 15px #FF8C00;
+    }
+    50% {
+        box-shadow: 0 0 25px #FFA500;
+    }
+    100% {
+        box-shadow: 0 0 15px #FF8C00;
+    }
+}
+
+/* 按鈕點擊效果 */
+.leaderboard-btn:active {
+    transform: translateY(1px);
+    box-shadow: 0 0 5px #FF8C00;
 }

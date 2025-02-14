@@ -813,3 +813,22 @@ function createLeaderboardItem(player, rank) {
     
     // ... 其餘的排行榜項目內容 ...
 }
+
+// 添加到現有代碼的適當位置
+function createMeteors() {
+    setInterval(() => {
+        const meteor = document.createElement('div');
+        meteor.className = 'meteor';
+        meteor.style.top = Math.random() * window.innerHeight + 'px';
+        meteor.style.left = Math.random() * window.innerWidth + 'px';
+        document.body.appendChild(meteor);
+        
+        // 動畫結束後移除元素
+        setTimeout(() => {
+            meteor.remove();
+        }, 3000);
+    }, 2000); // 每2秒生成一個新流星
+}
+
+// 在頁面加載時啟動流星效果
+document.addEventListener('DOMContentLoaded', createMeteors);
