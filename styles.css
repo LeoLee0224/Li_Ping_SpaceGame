@@ -1152,3 +1152,56 @@ h1, h2, #finalScore, #opponentScore {
 .leaderboard-content {
     padding-bottom: 40px;  /* 確保底部有足夠空間 */
 }
+
+/* 排行榜響應式設計 */
+@media screen and (max-width: 768px) {
+    /* 調整排行榜項目的網格布局 */
+    .leaderboard-item {
+        grid-template-columns: 40px 1fr 60px;  /* 移除時間列 */
+        gap: 8px;
+        padding: 12px 10px;
+        margin: 8px 0;
+    }
+
+    /* 隱藏時間列 */
+    .leaderboard-item .time {
+        display: none;
+    }
+
+    /* 調整排名數字寬度和大小 */
+    .leaderboard-item .rank {
+        width: 30px;
+        font-size: 14px;
+    }
+
+    /* 調整名字欄位 */
+    .leaderboard-item .name {
+        font-size: 14px;
+        padding: 0 5px;
+    }
+
+    /* 調整分數欄位 */
+    .leaderboard-item .score {
+        font-size: 14px;
+        width: auto;
+        padding: 0 5px;
+    }
+
+    /* 調整前三名的樣式 */
+    .leaderboard-item.top-3 {
+        padding-left: 35px;
+    }
+
+    /* 調整當前玩家排名顯示 */
+    .current-player-rank {
+        font-size: 1.2em;
+        padding: 15px;
+        line-height: 1.6;
+    }
+
+    /* 調整標題大小 */
+    #leaderboardContainer h2 {
+        font-size: 1.5em;
+        margin-bottom: 15px;
+    }
+}
