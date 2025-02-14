@@ -382,7 +382,9 @@ function showLeaderboard(fromResultPage = false) {
             });
 
             currentPlayerRankDiv.innerHTML = `
-                你的排名：第 ${currentPlayerRank} 名
+                玩家：${currentPlayer.name}
+                <br>
+                排名：第 ${currentPlayerRank} 名
                 <br>
                 分數：${currentPlayer.score}
                 <br>
@@ -730,26 +732,6 @@ function cleanupScanner() {
     }
 }
 
-// 更新時間顯示
-function updateCurrentTime() {
-    const now = new Date();
-    const hours = String(now.getHours()).padStart(2, '0');
-    const minutes = String(now.getMinutes()).padStart(2, '0');
-    const timeString = `${hours}:${minutes}`;
-    
-    const timeElement = document.getElementById('currentTime');
-    if (timeElement) {
-        timeElement.textContent = timeString;
-    }
-}
-
-// 頁面加載時立即更新時間
-document.addEventListener('DOMContentLoaded', () => {
-    updateCurrentTime();
-    // 每分鐘更新一次
-    setInterval(updateCurrentTime, 60000);
-});
-
 // 清理遊戲狀態
 function cleanupGame() {
     try {
@@ -815,4 +797,19 @@ function cleanupGame() {
     } catch (error) {
         console.error('清理遊戲狀態時發生錯誤:', error);
     }
+}
+
+// 在創建排行榜項目時添加獎牌
+function createLeaderboardItem(player, rank) {
+    const item = document.createElement('div');
+    item.className = `leaderboard-item${rank <= 3 ? ` top-3 rank-${rank}` : ''}`;
+    
+    // 添加獎牌元素（僅為前三名）
+    if (rank <= 3) {
+        const medal = document.createElement('div');
+        medal.className = 'rank-medal';
+        item.appendChild(medal);
+    }
+    
+    // ... 其餘的排行榜項目內容 ...
 }
