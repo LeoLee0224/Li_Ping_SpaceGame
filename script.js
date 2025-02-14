@@ -115,8 +115,8 @@ function startTimer() {
         if (timeLeft <= 0) {
             clearInterval(timer);
             timer = null;
-            // 時間到時直接結束遊戲
-            endGame();
+            // 檢查問題容器狀態
+            checkIfGameShouldEnd();
         }
     }, 1000);
 }
@@ -128,9 +128,32 @@ function updateTimerDisplay() {
 // 檢查是否應該結束遊戲
 function checkIfGameShouldEnd() {
     const questionContainer = document.querySelector('.question-container');
-    if (questionContainer && questionContainer.style.display === 'none') {
-        // 如果沒有題目在顯示，則結束遊戲
+    if (!questionContainer) {
+        console.error('找不到問題容器');
+        return;
+    }
+
+    // 只有當問題容器是隱藏的時候才結束遊戲
+    if (questionContainer.style.display === 'none') {
         endGame();
+    } else {
+        console.log('等待當前問題完成...');
+        // 設置監聽器等待問題容器隱藏
+        const observer = new MutationObserver((mutations) => {
+            mutations.forEach((mutation) => {
+                if (mutation.type === 'attributes' && 
+                    mutation.attributeName === 'style' &&
+                    questionContainer.style.display === 'none') {
+                    observer.disconnect();
+                    endGame();
+                }
+            });
+        });
+
+        observer.observe(questionContainer, {
+            attributes: true,
+            attributeFilter: ['style']
+        });
     }
 }
 
@@ -605,12 +628,6 @@ function handleAnswer(selectedButton, selectedOption, correctAnswer) {
     if (selectedOption === correctAnswer) {
         selectedButton.classList.add('correct');
         currentScore += 10;
-        // 立即更新 Firebase 中的分數
-        if (currentSessionId && playerName) {
-            database.ref(`gameSessions/${currentSessionId}/scores/${playerName}`).update({
-                currentScore: currentScore
-            });
-        }
         updateScore();
         showMessage('答對了！+10分', 'success');
     } else {
@@ -640,6 +657,11 @@ function handleAnswer(selectedButton, selectedOption, correctAnswer) {
         // 恢復掃描器
         if (html5QrcodeScanner) {
             html5QrcodeScanner.resume();
+        }
+
+        // 如果計時器已經結束，檢查是否應該結束遊戲
+        if (!timer) {
+            checkIfGameShouldEnd();
         }
     }, 3000);
 }
