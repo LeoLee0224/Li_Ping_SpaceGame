@@ -229,12 +229,17 @@ function checkOpponentScore() {
                 
                 // 顯示勝負
                 const resultMessage = document.getElementById('resultMessage');
+                resultMessage.className = ''; // 清除現有的類
+
                 if (currentScore > opponentScore) {
-                    resultMessage.textContent = '恭喜你獲勝！';
+                    resultMessage.textContent = '🏆 恭喜你獲勝！';
+                    resultMessage.classList.add('win');
                 } else if (currentScore < opponentScore) {
-                    resultMessage.textContent = '很遺憾，你輸了！';
+                    resultMessage.textContent = '💔 很遺憾，你輸了！';
+                    resultMessage.classList.add('lose');
                 } else {
-                    resultMessage.textContent = '平局！';
+                    resultMessage.textContent = '🤝 平局！';
+                    resultMessage.classList.add('draw');
                 }
             }
         }
