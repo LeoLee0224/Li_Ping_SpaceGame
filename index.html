@@ -53,14 +53,14 @@
             <p>你的分數：<span id="finalScore">0</span></p>
             <p>對手分數：<span id="opponentScore">0</span></p>
             <p id="resultMessage"></p>
-            <button onclick="showLeaderboard(true)">查看排行榜</button>
+            <button class="leaderboard-btn" onclick="showLeaderboard(true)">查看排行榜</button>
         </div>
         <div id="leaderboardContainer" style="display: none;">
             <h2>排行榜</h2>
             <div id="currentPlayerRank" class="current-player-rank"></div>
             <hr>
             <div id="leaderboardList"></div>
-            <button onclick="restartGame()">再次挑戰</button>
+            <button class="restart-btn" onclick="restartGame()">再次挑戰</button>
         </div>
     </div>
 
