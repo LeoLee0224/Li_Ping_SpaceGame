@@ -411,3 +411,18 @@ button:hover {
     cursor: not-allowed;
     opacity: 0.8;
 }
+
+/* 當前玩家的排名樣式 */
+.leaderboard-item.current-player {
+    background-color: #4CAF50;
+    color: white;
+    font-weight: bold;
+}
+
+/* 確保當前玩家的文字顏色保持白色 */
+.leaderboard-item.current-player .rank,
+.leaderboard-item.current-player .name,
+.leaderboard-item.current-player .score,
+.leaderboard-item.current-player .time {
+    color: white;
+}

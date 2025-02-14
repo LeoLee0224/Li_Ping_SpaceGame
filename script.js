@@ -86,58 +86,13 @@ function formatDateTime(timestamp) {
     return `${year}/${month}/${day} ${hours}:${minutes}`;
 }
 
-function endGame() {
-    clearInterval(timer);
-    
-    if (currentSessionId && playerName) {
-        // 更新最終分數
-        database.ref(`gameSessions/${currentSessionId}/scores/${playerName}`).set({
-            score: currentScore,
-            completed: true,
-            timestamp: firebase.database.ServerValue.TIMESTAMP
-        }).then(() => {
-            document.querySelector('.game-container').style.display = 'none';
-            document.getElementById('resultContainer').style.display = 'block';
-            document.getElementById('finalScore').textContent = currentScore;
-            checkGameCompletion();
-        });
-    }
-}
-
-function checkGameCompletion() {
-    database.ref(`gameSessions/${currentSessionId}/scores`).on('value', (snapshot) => {
-        const scores = snapshot.val();
-        if (scores) {
-            const players = Object.keys(scores);
-            if (players.length === 2 && players.every(player => scores[player].completed)) {
-                const otherPlayer = players.find(p => p !== playerName);
-                const otherScore = scores[otherPlayer].score;
-                
-                document.getElementById('opponentScore').textContent = otherScore;
-                
-                const resultMessage = document.getElementById('resultMessage');
-                if (currentScore > otherScore) {
-                    resultMessage.textContent = '恭喜你獲勝！';
-                    resultMessage.className = 'result-message winner';
-                } else if (currentScore < otherScore) {
-                    resultMessage.textContent = '很遺憾，你輸了！';
-                    resultMessage.className = 'result-message loser';
-                } else {
-                    resultMessage.textContent = '平局！';
-                    resultMessage.className = 'result-message';
-                }
-            }
-        }
-    });
-}
-
 // 計時器函數
 function startTimer() {
     if (timer) {
         clearInterval(timer);
     }
     
-    timeLeft = 20;
+    timeLeft = 20; // 設置倒計時
     updateTimerDisplay();
     
     timer = setInterval(() => {
@@ -146,13 +101,78 @@ function startTimer() {
         
         if (timeLeft <= 0) {
             clearInterval(timer);
-            endGame(); // 時間到自動結束遊戲
+            timer = null;
+            // 時間到時直接結束遊戲
+            endGame();
         }
     }, 1000);
 }
 
 function updateTimerDisplay() {
     document.querySelector('.timer span').textContent = timeLeft;
+}
+
+// 檢查是否應該結束遊戲
+function checkIfGameShouldEnd() {
+    const questionContainer = document.querySelector('.question-container');
+    if (questionContainer && questionContainer.style.display === 'none') {
+        // 如果沒有題目在顯示，則結束遊戲
+        endGame();
+    }
+}
+
+// 結束遊戲並顯示結果
+function endGame() {
+    if (timer) {
+        clearInterval(timer);
+        timer = null;
+    }
+
+    if (currentSessionId && playerName) {
+        // 保存最終分數
+        database.ref(`gameSessions/${currentSessionId}/scores/${playerName}`).update({
+            finalScore: currentScore,
+            completed: true,
+            timestamp: Date.now()
+        }).then(() => {
+            document.querySelector('.game-container').style.display = 'none';
+            document.getElementById('resultContainer').style.display = 'block';
+            document.getElementById('finalScore').textContent = currentScore;
+            checkOpponentScore(); // 確保檢查對手分數
+        }).catch(error => {
+            console.error('保存分數時出錯：', error);
+            showDebug('保存分數時出錯：' + error.message);
+        });
+    }
+}
+
+// 檢查對手分數並顯示結果
+function checkOpponentScore() {
+    if (!currentSessionId || !playerName) return;
+
+    database.ref(`gameSessions/${currentSessionId}/scores`).once('value', (snapshot) => {
+        const scores = snapshot.val();
+        if (scores) {
+            const players = Object.keys(scores);
+            const opponent = players.find(p => p !== playerName);
+            
+            if (opponent) {
+                const opponentData = scores[opponent];
+                const opponentScore = opponentData.finalScore || opponentData.currentScore || 0;
+                document.getElementById('opponentScore').textContent = opponentScore;
+                
+                // 顯示勝負
+                const resultMessage = document.getElementById('resultMessage');
+                if (currentScore > opponentScore) {
+                    resultMessage.textContent = '恭喜你獲勝！';
+                } else if (currentScore < opponentScore) {
+                    resultMessage.textContent = '很遺憾，你輸了！';
+                } else {
+                    resultMessage.textContent = '平局！';
+                }
+            }
+        }
+    });
 }
 
 // 計分函數
@@ -234,11 +254,16 @@ function showLeaderboard(fromResultPage = false) {
                 if (session.scores) {
                     Object.entries(session.scores).forEach(([name, data]) => {
                         if (data.score !== undefined) {
+                            // 修改這裡：檢查是否為當前遊戲場次
+                            const isCurrentGame = fromResultPage && 
+                                               name === playerName && 
+                                               session.id === currentSessionId;
+                            
                             scores.push({
                                 name: name,
                                 score: data.score,
                                 timestamp: data.timestamp || Date.now(),
-                                isCurrentPlayer: fromResultPage && name === playerName
+                                isCurrentPlayer: isCurrentGame
                             });
                         }
                     });
@@ -281,7 +306,7 @@ function showLeaderboard(fromResultPage = false) {
             leaderboardList.appendChild(scoreElement);
         });
 
-        // 如果當前玩家不在前10名，保持原有的顯示邏輯
+        // 如果當前玩家不在前10名，顯示其排名
         if (fromResultPage && currentPlayerRank > 10) {
             const currentPlayerElement = document.createElement('div');
             currentPlayerElement.className = 'leaderboard-item current-player';
@@ -297,37 +322,20 @@ function showLeaderboard(fromResultPage = false) {
     });
 }
 
-// 返回主頁面
-function backFromLeaderboard() {
-    document.getElementById('leaderboardContainer').style.display = 'none';
-    
-    // 如果在遊戲結果頁面點擊的排行榜，返回結果頁面
-    if (document.getElementById('resultContainer').style.display === 'block') {
-        document.getElementById('resultContainer').style.display = 'block';
-    } else {
-        // 否則返回主頁面
-        document.querySelector('.input-container').style.display = 'block';
-    }
-}
-
-// 再次挑戰
+// 重新開始遊戲
 function restartGame() {
-    // 重置遊戲狀態
-    currentScore = 0;
-    timeLeft = 20;
-    gameStarted = false;
-    if (timer) {
-        clearInterval(timer);
-        timer = null;
-    }
+    // 清理遊戲狀態
+    cleanupGame();
     
-    // 隱藏所有容器
-    document.getElementById('resultContainer').style.display = 'none';
+    // 返回到輸入名字的界面
     document.getElementById('leaderboardContainer').style.display = 'none';
-    
-    // 顯示輸入容器
     document.querySelector('.input-container').style.display = 'block';
-    document.querySelector('input[type="text"]').value = '';
+    
+    // 清空輸入框
+    const nameInput = document.querySelector('input[type="text"]');
+    if (nameInput) {
+        nameInput.value = '';
+    }
 }
 
 // 保存排行榜到本地存儲
@@ -423,7 +431,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // 主頁面的排行榜按鈕
     const mainLeaderboardBtn = document.querySelector('.input-container .leaderboard-btn');
     if (mainLeaderboardBtn) {
-        mainLeaderboardBtn.onclick = () => showLeaderboard(false);
+        mainLeaderboardBtn.onclick = () => showLeaderboard();
     }
     
     // 結果頁面的排行榜按鈕
@@ -554,15 +562,20 @@ function handleAnswer(selectedButton, selectedOption, correctAnswer) {
     // 禁用所有按鈕，防止重複點擊
     options.forEach(button => button.disabled = true);
     
-    // 顯示答案結果
+    // 顯示答案結果並更新分數
     if (selectedOption === correctAnswer) {
         selectedButton.classList.add('correct');
         currentScore += 10;
+        // 立即更新 Firebase 中的分數
+        if (currentSessionId && playerName) {
+            database.ref(`gameSessions/${currentSessionId}/scores/${playerName}`).update({
+                currentScore: currentScore
+            });
+        }
         updateScore();
         showMessage('答對了！+10分', 'success');
     } else {
         selectedButton.classList.add('wrong');
-        // 顯示正確答案
         options.forEach(button => {
             if (button.dataset.option === correctAnswer) {
                 button.classList.add('correct');
@@ -641,4 +654,74 @@ document.addEventListener('DOMContentLoaded', () => {
     updateCurrentTime();
     // 每分鐘更新一次
     setInterval(updateCurrentTime, 60000);
-}); 
+});
+
+// 清理遊戲狀態
+function cleanupGame() {
+    try {
+        // 1. 清理界面元素
+        const questionContainer = document.querySelector('.question-container');
+        if (questionContainer) {
+            questionContainer.style.display = 'none';
+            const questionText = document.getElementById('questionText');
+            if (questionText) {
+                questionText.textContent = '';
+            }
+        }
+
+        // 重置所有按鈕
+        const options = document.querySelectorAll('.option-btn');
+        options.forEach(button => {
+            button.className = 'option-btn';
+            button.disabled = false;
+            button.textContent = '';
+        });
+
+        // 清理掃描器
+        if (html5QrcodeScanner) {
+            html5QrcodeScanner.clear().catch(() => {
+                console.log('掃描器已被清理');
+            });
+            html5QrcodeScanner = null;
+        }
+
+        // 2. 移除 Firebase 監聽器
+        if (currentSessionId) {
+            database.ref(`gameSessions/${currentSessionId}`).off();
+        }
+
+        // 3. 重置遊戲狀態
+        currentSessionId = null;
+        playerName = '';
+        currentScore = 0;
+        timeLeft = 20;
+        gameStarted = false;
+        
+        if (timer) {
+            clearInterval(timer);
+            timer = null;
+        }
+
+        // 4. 重置顯示
+        document.querySelector('.game-container').style.display = 'none';
+        document.querySelector('.input-container').style.display = 'block';
+        document.getElementById('resultContainer').style.display = 'none';
+        document.getElementById('leaderboardContainer').style.display = 'none';
+        document.getElementById('waitingMessage').style.display = 'none';
+        document.querySelector('.player-info').textContent = '';
+        document.querySelector('.score').textContent = '目前分數：0';
+
+        // 5. 清空輸入框
+        const nameInput = document.querySelector('input[type="text"]');
+        if (nameInput) {
+            nameInput.value = '';
+        }
+
+        showDebug('遊戲狀態已完全清理');
+    } catch (error) {
+        showDebug('清理遊戲狀態時發生錯誤: ' + error.message, true);
+        console.error('清理遊戲狀態時發生錯誤:', error);
+    }
+}
+
+// 在所有題目完成或時間到時結束遊戲
